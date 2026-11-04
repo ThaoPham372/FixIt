@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FixIt - Quản lý Bằng chứng & Hồ sơ Khiếu nại Hàng hoàn TMĐT</title>
+  <style>
+    :root {
+      --ink: #19343b;
+      --muted: #627b82;
+      --line: #e3eaea;
+      --bg: #f5f8f7;
+      --green: #087f73;
+      --green-dark: #06655c;
+      --nav: #132a32;
+      --soft: #e8f4f0;
+      --amber: #98600f;
+      --danger: #cf3737;
+      --danger-soft: #fde8e8;
+      --warning-soft: #fef5e7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      font: 14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .side {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: 235px;
+      background: var(--nav);
+      color: #c4d0d1;
+      padding: 20px 14px;
+      overflow-y: auto;
+      z-index: 5;
+    }
+
+    .brand {
+      font-size: 26px;
+      font-weight: 800;
+      color: white;
+      padding: 6px 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 12px;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      background: var(--green);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .label {
+      font-size: 11px;
+      color: #8da4a7;
+      padding: 12px 12px 6px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 700;
+    }
+
+    .nav {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 2px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all .15s ease;
+      color: #c4d0d1;
+    }
+
+    .nav:hover,
+    .nav.on {
+      background: #23454c;
+      color: #fff;
+    }
+
+    .nav.on {
+      font-weight: 600;
+      border-left: 3px solid #20c997;
+    }
+
+    .main {
+      margin-left: 235px;
+      width: calc(100% - 235px);
+      padding: 24px 32px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 20px;
+      background: var(--soft);
+      color: var(--green);
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .pill.online::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #107c41;
+      display: inline-block;
+    }
+
+    .heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 0 0 12px;
+      color: var(--ink);
+    }
+
+    .sub,
+    small {
+      color: var(--muted);
+    }
+
+    .btn {
+      background: var(--green);
+      color: white;
+      border: 0;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-weight: 650;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity .15s;
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    .btn.secondary {
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .btn.secondary:hover {
+      background: #f8faf9;
+    }
+
+    .btn.light {
+      background: var(--soft);
+      color: var(--green);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-xs {
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .btn-xs.primary {
+      background: var(--green);
+      color: white;
+    }
+
+    .btn-xs.success {
+      background: #107c41;
+      color: white;
+    }
+
+    .btn-xs.danger {
+      background: #cf3737;
+      color: white;
+    }
+
+    .btn-xs.warning {
+      background: #d97706;
+      color: white;
+    }
+
+    .btn-xs.secondary {
+      background: white;
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    .btn-xs:hover {
+      opacity: 0.88;
+    }
+
+    .panel,
+    .metric {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .metric {
+      margin: 0;
+    }
+
+    .metric-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .number {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .number.danger {
+      color: var(--danger);
+    }
+
+    .number.amber {
+      color: #d97706;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13.5px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: #fafcfb;
+    }
+
+    tr:hover td {
+      background: #fbfdfc;
+    }
+
+    .tag {
+      display: inline-block;
+      border-radius: 14px;
+      background: #eef2f1;
+      color: var(--ink);
+      padding: 3px 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .tag-info {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .tag-warn {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .tag-success {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .tag-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .channel-pill {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    .channel-shopee {
+      background: #fff1eb;
+      color: #ee4d2d;
+      border: 1px solid #fedcd2;
+    }
+
+    .channel-tiktok {
+      background: #f0f2f5;
+      color: #000;
+      border: 1px solid #d3d7de;
+    }
+
+    .sla-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #fee2e2;
+      color: #b91c1c;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .formrow {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .formrow input {
+      flex: 1;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      margin: 12px 0;
+    }
+
+    .field label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .formrow input {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(8, 127, 115, 0.12);
+    }
+
+    textarea {
+      min-height: 85px;
+      resize: vertical;
+    }
+
+    .camera {
+      background: #0c1a1f;
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .camera video {
+      width: 100%;
+      max-height: 380px;
+      background: #000;
+      border-radius: 8px;
+    }
+
+    .modalbg {
+      position: fixed;
+      inset: 0;
+      background: rgba(14, 28, 33, 0.75);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal {
+      background: white;
+      width: min(720px, 100%);
+      max-height: 92vh;
+      overflow-y: auto;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .end {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .notice {
+      background: #fff8eb;
+      color: #92540c;
+      border: 1px solid #ffe1b3;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+
+    .notice.info {
+      background: #eef8fc;
+      color: #1b6ca8;
+      border-color: #cde8f6;
+    }
+
+    .notice.success {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin: 16px 0;
+      padding-bottom: 4px;
+    }
+
+    .step {
+      white-space: nowrap;
+      background: #ebf0ef;
+      border-radius: 8px;
+      padding: 7px 14px;
+      color: var(--muted);
+      border: 0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .step.on {
+      background: var(--soft);
+      color: var(--green);
+    }
+
+    .filter-count {
+      margin-left: 6px;
+      border-radius: 10px;
+      padding: 1px 7px;
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+    }
+
+    .ai-diff {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: #f8fbfa;
+      border: 1px solid #d8e8e4;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 8px 0;
+    }
+
+    .ai-diff input {
+      margin-top: 4px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--green);
+    }
+
+    .ai-badge {
+      display: inline-block;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .shopee-tier {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #f9fbfb;
+      border: 1px dashed var(--line);
+      margin: 10px 0;
+      font-size: 12.5px;
+    }
+
+    .timeline {
+      border-left: 2px solid var(--line);
+      margin: 14px 0 14px 10px;
+      padding-left: 16px;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -21px;
+      top: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .timeline-time {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .timeline-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin: 0;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-top: 1px dashed var(--line);
+      font-size: 12.5px;
+    }
+
+    @media(max-width: 900px) {
+      .metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media(max-width: 760px) {
+      .side {
+        width: 64px;
+        padding: 12px 6px;
+      }
+
+      .brand {
+        font-size: 0;
+        justify-content: center;
+        padding: 6px 0 16px;
+      }
+
+      .brand:after {
+        content: 'F';
+        font-size: 26px;
+      }
+
+      .brand-tag {
+        display: none;
+      }
+
+      .label {
+        display: none;
+      }
+
+      .nav {
+        font-size: 0;
+        justify-content: center;
+        padding: 10px 0;
+      }
+
+      .nav:before {
+        content: attr(data-icon);
+        font-size: 18px;
+      }
+
+      .main {
+        margin-left: 64px;
+        width: calc(100% - 64px);
+        padding: 16px 14px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .hide {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <aside class="side">
+      <div class="brand">
+        fixit.
+        <span class="brand-tag">PRO</span>
+      </div>
+
+      <div class="label">Bán hàng đa kênh</div>
+      <div class="nav on" data-page="home" data-icon="⌂">Tổng quan</div>
+      <div class="nav" data-page="orders" data-icon="▤">Đơn hàng</div>
+      <div class="nav" data-page="products" data-icon="□">Sản phẩm</div>
+      <div class="nav" data-page="inventory" data-icon="▦">Kho hàng</div>
+      <div class="nav" data-page="stores" data-icon="▣">Gian hàng TMĐT</div>
+
+      <div class="label">Trọng tâm Hàng hoàn</div>
+      <div class="nav" data-page="returns" data-icon="↩">Hàng hoàn về</div>
+      <div class="nav" data-page="evidence" data-icon="▶">Video đóng gói</div>
+      <div class="nav" data-page="claims" data-icon="✓">Hồ sơ khiếu nại</div>
+
+      <div class="label">Báo cáo & Hệ thống</div>
+      <div class="nav" data-page="reports" data-icon="▥">Báo cáo tài chính</div>
+      <div class="nav" data-page="settings" data-icon="⚙">Cài đặt</div>
+    </aside>
+
+    <main class="main">
+      <div class="top">
+        <div>
+          <b>FixIt Operations</b> · Shop Minh An (Shopee Mall / TikTok Shop)
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="pill online" id="dbstate">MongoDB Atlas: Đang kết nối…</span>
+          <button class="btn-xs secondary" onclick="resetSeedData()" title="Khôi phục toàn bộ dữ liệu mẫu đầy đủ">↻ Nạp
+            lại dữ liệu mẫu</button>
+        </div>
+      </div>
+      <div id="app"></div>
+    </main>
+  </div>
+
+  <div id="modal"></div>
+
+  <script src="/js/components/modal.js"></script>
+  <script src="/js/components/media-capture.js"></script>
+  <script src="/js/components/order-table.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+
+</html>
