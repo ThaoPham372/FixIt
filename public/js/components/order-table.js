@@ -7,7 +7,7 @@ class OrderTable extends HTMLElement {
     const formatMoney = (v) => Number(v || 0).toLocaleString('vi-VN') + 'đ';
 
     const getStatusBadge = (status) => {
-      let cls = 'tag';
+      let cls = 'tag-status';
       if (status === 'Chờ xác nhận') cls += ' tag-info';
       else if (status === 'Chờ đóng gói') cls += ' tag-warn';
       else if (status === 'Đã đóng gói') cls += ' tag-success';
@@ -25,10 +25,10 @@ class OrderTable extends HTMLElement {
           <tr>
             <th>Mã đơn / Vận đơn</th>
             <th>Sản phẩm & Khách hàng</th>
-            <th class="hide">Kênh</th>
+            <th class="hide" style="width:115px;text-align:center">Kênh</th>
             <th>Tổng tiền</th>
-            <th>Trạng thái</th>
-            <th style="text-align:right">Hành động</th>
+            <th style="width:175px">Trạng thái</th>
+            <th style="width:215px;text-align:right">Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -53,7 +53,7 @@ class OrderTable extends HTMLElement {
                 <div style="font-weight:600">${escape(o.product)}</div>
                 <small class="sub">${escape(o.customerName || 'Khách hàng')} · SKU: ${escape(o.sku || 'N/A')}</small>
               </td>
-              <td class="hide">
+              <td class="hide" style="text-align:center">
                 <span class="channel-pill channel-${(o.channel || '').toLowerCase().includes('shopee') ? 'shopee' : 'tiktok'}">
                   ${escape(o.channel || 'Khác')}
                 </span>
@@ -67,33 +67,35 @@ class OrderTable extends HTMLElement {
                     : ''
                 }
               </td>
-              <td style="text-align:right;white-space:nowrap">
-                ${
-                  o.status === 'Chờ xác nhận'
-                    ? `<button class="btn-xs primary" data-action="confirm" data-code="${escape(o.code)}">Xác nhận</button> `
-                    : ''
-                }
-                ${
-                  o.status === 'Chờ đóng gói'
-                    ? `<button class="btn-xs success" data-action="pack" data-code="${escape(o.code)}">Quay đóng hàng</button> `
-                    : ''
-                }
-                ${
-                  o.status === 'Đã đóng gói'
-                    ? `<button class="btn-xs secondary" data-action="view-evidence" data-code="${escape(o.code)}">Xem video</button> `
-                    : ''
-                }
-                ${
-                  o.status === 'Đang kiểm tra hàng hoàn' || o.status === 'Đang hoàn về'
-                    ? `<button class="btn-xs danger" data-action="return-inspect" data-code="${escape(o.code)}">Mở kiện hoàn</button> `
-                    : ''
-                }
-                ${
-                  o.status === 'Chờ người bán duyệt khiếu nại'
-                    ? `<button class="btn-xs warning" data-action="claim-review" data-code="${escape(o.code)}">Duyệt khiếu nại</button> `
-                    : ''
-                }
-                <button class="btn-xs secondary" data-action="view-detail" data-code="${escape(o.code)}">Chi tiết</button>
+              <td style="text-align:right">
+                <div class="action-cell">
+                  ${
+                    o.status === 'Chờ xác nhận'
+                      ? `<button class="btn-action-main primary" data-action="confirm" data-code="${escape(o.code)}">Xác nhận</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Chờ đóng gói'
+                      ? `<button class="btn-action-main success" data-action="pack" data-code="${escape(o.code)}">Quay đóng hàng</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Đã đóng gói'
+                      ? `<button class="btn-action-main secondary" data-action="view-evidence" data-code="${escape(o.code)}">Xem video</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Đang kiểm tra hàng hoàn' || o.status === 'Đang hoàn về'
+                      ? `<button class="btn-action-main danger" data-action="return-inspect" data-code="${escape(o.code)}">Mở kiện hoàn</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Chờ người bán duyệt khiếu nại'
+                      ? `<button class="btn-action-main warning" data-action="claim-review" data-code="${escape(o.code)}">Duyệt khiếu nại</button>`
+                      : ''
+                  }
+                  <button class="btn-action-sub" data-action="view-detail" data-code="${escape(o.code)}">Chi tiết</button>
+                </div>
               </td>
             </tr>
           `

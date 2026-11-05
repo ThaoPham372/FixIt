@@ -254,12 +254,12 @@ function renderHome(header) {
                 <tr>
                   <td><b>${esc(o.code)}</b><br><small class="sub">${esc(o.returnTrackingCode || o.trackingCode || 'Chưa có mã VĐ')}</small></td>
                   <td>${esc(o.product)}</td>
-                  <td><span class="tag tag-danger">${esc(o.returnReason || 'Kiểm tra mở kiện')}</span></td>
+                  <td><span class="tag tag-danger" style="display:inline-flex;align-items:center;padding:4px 10px">${esc(o.returnReason || 'Kiểm tra mở kiện')}</span></td>
                   <td><span class="sla-badge">⏳ Còn 18 giờ</span></td>
-                  <td>
+                  <td style="text-align:right">
                     ${o.status === 'Chờ người bán duyệt khiếu nại'
-              ? `<button class="btn-xs warning" onclick="comparison('${esc(o.code)}')">Duyệt đối chiếu AI</button>`
-              : `<button class="btn-xs danger" onclick="scan('${esc(o.code)}','return')">Mở kiện & Quay video</button>`
+              ? `<button class="btn-action-main warning" style="width:165px" onclick="comparison('${esc(o.code)}')">Duyệt đối chiếu AI</button>`
+              : `<button class="btn-action-main danger" style="width:165px" onclick="scan('${esc(o.code)}','return')">Mở kiện & Quay video</button>`
             }
                   </td>
                 </tr>
@@ -364,9 +364,9 @@ function renderProducts(header) {
             <th>Danh mục</th>
             <th>Giá niêm yết</th>
             <th>Tồn kho khả dụng</th>
-            <th>Đang đóng gói</th>
+            <th style="width:125px;text-align:center">Đang đóng gói</th>
             <th>Tỷ lệ hoàn hàng</th>
-            <th>Mức độ rủi ro</th>
+            <th style="width:115px;text-align:center">Mức độ rủi ro</th>
           </tr>
         </thead>
         <tbody>
@@ -381,15 +381,15 @@ function renderProducts(header) {
               <td><span class="tag">${esc(p.category || 'Thời trang')}</span></td>
               <td><b>${formatMoney(p.price)}</b></td>
               <td><b>${p.stock}</b> cái</td>
-              <td><span class="tag tag-warn">${p.reserved || 0} đang giữ</span></td>
+              <td style="text-align:center"><span class="tag-fixed tag-warn">${p.reserved || 0} đang giữ</span></td>
               <td>
                 <b style="color:${p.returnRate > 10 ? '#cf3737' : p.returnRate > 5 ? '#d97706' : '#107c41'}">
                   ${p.returnRate || 0}%
                 </b>
                 <small class="sub">(${p.totalReturns || 0}/${p.totalOrders || 0} đơn)</small>
               </td>
-              <td>
-                <span class="tag ${p.riskLevel === 'Cao' ? 'tag-danger' : p.riskLevel === 'Trung bình' ? 'tag-warn' : 'tag-success'}">
+              <td style="text-align:center">
+                <span class="tag-risk ${p.riskLevel === 'Cao' ? 'tag-danger' : p.riskLevel === 'Trung bình' ? 'tag-warn' : 'tag-success'}">
                   ${esc(p.riskLevel || 'Thấp')}
                 </span>
               </td>
@@ -461,8 +461,8 @@ function renderInventory(header) {
             <th>Mã SKU</th>
             <th>Tên sản phẩm</th>
             <th>Tồn sẵn sàng</th>
-            <th>Đang giữ chỗ</th>
-            <th>Trạng thái tồn kho</th>
+            <th style="width:125px;text-align:center">Đang giữ chỗ</th>
+            <th style="width:135px;text-align:center">Trạng thái tồn kho</th>
           </tr>
         </thead>
         <tbody>
@@ -473,9 +473,9 @@ function renderInventory(header) {
               <td><b>${esc(p.sku)}</b></td>
               <td>${esc(p.name)}</td>
               <td><b style="color:var(--green)">${p.stock}</b></td>
-              <td><span class="tag tag-warn">${p.reserved || 0}</span></td>
-              <td>
-                <span class="tag ${p.stock < 40 ? 'tag-danger' : 'tag-success'}">
+              <td style="text-align:center"><span class="tag-fixed tag-warn">${p.reserved || 0}</span></td>
+              <td style="text-align:center">
+                <span class="tag-fixed ${p.stock < 40 ? 'tag-danger' : 'tag-success'}">
                   ${p.stock < 40 ? 'Sắp hết hàng' : 'Đủ hàng bán'}
                 </span>
               </td>
@@ -632,12 +632,12 @@ function renderClaims(header) {
           <thead>
             <tr>
               <th>Mã đơn / Vận đơn</th>
-              <th>Sàn</th>
+              <th style="width:115px;text-align:center">Sàn</th>
               <th>Lý do khiếu nại</th>
-              <th>Cấp độ bằng chứng</th>
+              <th style="width:130px;text-align:center">Cấp độ bằng chứng</th>
               <th>Số tiền yêu cầu</th>
-              <th>Trạng thái hồ sơ</th>
-              <th>Hành động</th>
+              <th style="width:145px;text-align:center">Trạng thái hồ sơ</th>
+              <th style="width:190px;text-align:right">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -649,7 +649,7 @@ function renderClaims(header) {
                   <b>${esc(c.orderCode)}</b>
                   <br><small class="sub">${esc(c.trackingCode || 'N/A')}</small>
                 </td>
-                <td>
+                <td style="text-align:center">
                   <span class="channel-pill channel-${(c.channel || '').toLowerCase().includes('shopee') ? 'shopee' : 'tiktok'}">
                     ${esc(c.channel || 'Shopee')}
                   </span>
@@ -658,19 +658,19 @@ function renderClaims(header) {
                   <b>${esc(c.reason)}</b>
                   <br><small class="sub">${esc(c.description || '').slice(0, 70)}...</small>
                 </td>
-                <td>
-                  <span class="tag ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : c.evidenceStrength === 'Mạnh' ? 'tag-info' : 'tag-warn'}">
+                <td style="text-align:center">
+                  <span class="tag-fixed ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : c.evidenceStrength === 'Mạnh' ? 'tag-info' : 'tag-warn'}">
                     ⭐ ${esc(c.evidenceStrength || 'Mạnh')}
                   </span>
                 </td>
                 <td><b>${formatMoney(c.claimAmount)}</b></td>
-                <td>
-                  <span class="tag ${c.status === 'Đã bồi hoàn' ? 'tag-success' : c.status === 'Bị từ chối' ? 'tag-danger' : 'tag-warn'}">
+                <td style="text-align:center">
+                  <span class="tag-status ${c.status === 'Đã bồi hoàn' ? 'tag-success' : c.status === 'Bị từ chối' ? 'tag-danger' : 'tag-warn'}">
                     ${esc(c.status)}
                   </span>
                 </td>
-                <td>
-                  <button class="btn-xs primary" onclick="viewClaimDetailModal('${c._id}')">Xem & Copy đơn gửi sàn</button>
+                <td style="text-align:right">
+                  <button class="btn-action-main primary" style="width:175px" onclick="viewClaimDetailModal('${c._id}')">Xem & Copy đơn gửi sàn</button>
                 </td>
               </tr>
             `

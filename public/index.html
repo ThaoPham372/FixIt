@@ -353,12 +353,19 @@
       color: #b91c1c;
     }
 
+    /* Kích thước chuẩn hóa cố định cho các nhãn và badge */
     .channel-pill {
-      font-size: 11px;
-      padding: 2px 7px;
-      border-radius: 12px;
+      font-size: 11.5px;
+      width: 95px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 13px;
       font-weight: 700;
-      display: inline-block;
+      text-align: center;
+      box-sizing: border-box;
+      white-space: nowrap;
     }
 
     .channel-shopee {
@@ -371,6 +378,113 @@
       background: #f0f2f5;
       color: #000;
       border: 1px solid #d3d7de;
+    }
+
+    .tag-risk {
+      width: 90px;
+      height: 25px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    .tag-fixed {
+      width: 95px;
+      height: 25px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    .tag-status {
+      min-width: 140px;
+      height: 26px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    /* Chuẩn hóa nút bấm cột Hành động */
+    .action-cell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 195px;
+      white-space: nowrap;
+    }
+
+    .btn-action-main {
+      width: 110px;
+      height: 28px;
+      padding: 0;
+      font-size: 11.5px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-sizing: border-box;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+
+    .btn-action-main:hover {
+      opacity: 0.9;
+    }
+
+    .btn-action-main.primary { background: var(--green); color: white; }
+    .btn-action-main.success { background: #107c41; color: white; }
+    .btn-action-main.danger { background: #cf3737; color: white; }
+    .btn-action-main.warning { background: #d97706; color: white; }
+    .btn-action-main.secondary { background: white; border: 1px solid var(--line); color: var(--ink); }
+
+    .btn-action-sub {
+      width: 72px;
+      height: 28px;
+      padding: 0;
+      font-size: 11.5px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-sizing: border-box;
+      background: white;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      white-space: nowrap;
+      text-decoration: none;
+      transition: background .15s;
+    }
+
+    .btn-action-sub:hover {
+      background: #f4f7f6;
     }
 
     .sla-badge {
