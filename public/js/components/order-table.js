@@ -12,9 +12,11 @@ class OrderTable extends HTMLElement {
       else if (status === 'Chờ đóng gói') cls += ' tag-warn';
       else if (status === 'Đã đóng gói') cls += ' tag-success';
       else if (status === 'Đang giao hàng') cls += ' tag-info';
+      else if (status === 'Đã giải quyết - Hoàn tiền') cls += ' tag-success';
+      else if (status === 'Khiếu nại bị từ chối') cls += ' tag-danger';
+      else if (status.includes('nguyên vẹn')) cls += ' tag-success';
       else if (status.includes('hoàn') || status.includes('kiểm tra')) cls += ' tag-danger';
       else if (status.includes('khiếu nại')) cls += ' tag-danger';
-      else if (status.includes('nguyên vẹn')) cls += ' tag-success';
       return `<span class="${cls}">${escape(status)}</span>`;
     };
 
@@ -92,6 +94,21 @@ class OrderTable extends HTMLElement {
                   ${
                     o.status === 'Chờ người bán duyệt khiếu nại'
                       ? `<button class="btn-action-main warning" data-action="claim-review" data-code="${escape(o.code)}">Duyệt khiếu nại</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Đang khiếu nại sàn'
+                      ? `<button class="btn-action-main danger" data-action="view-simulator" data-code="${escape(o.code)}">Sàn đang xử lý</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Đã giải quyết - Hoàn tiền'
+                      ? `<button class="btn-action-main success" data-action="view-wallet" data-code="${escape(o.code)}">Đã hoàn tiền</button>`
+                      : ''
+                  }
+                  ${
+                    o.status === 'Khiếu nại bị từ chối'
+                      ? `<button class="btn-action-main secondary" data-action="view-simulator" data-code="${escape(o.code)}">Bị sàn từ chối</button>`
                       : ''
                   }
                   <button class="btn-action-sub" data-action="view-detail" data-code="${escape(o.code)}">Chi tiết</button>

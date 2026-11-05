@@ -67,6 +67,7 @@ const orderSchema = new mongoose.Schema(
         'Chờ người bán duyệt khiếu nại',
         'Đang khiếu nại sàn',
         'Đã giải quyết - Hoàn tiền',
+        'Khiếu nại bị từ chối',
         'Hàng hoàn nguyên vẹn (Đã nhập kho)',
       ],
     },

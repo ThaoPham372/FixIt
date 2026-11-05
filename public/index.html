@@ -593,6 +593,11 @@
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
     }
 
+    .modal.large,
+    .modal-large {
+      width: min(960px, 96vw) !important;
+    }
+
     .end {
       display: flex;
       justify-content: flex-end;
@@ -864,6 +869,7 @@
       <div class="nav" data-page="returns" data-icon="↩">Hàng hoàn về</div>
       <div class="nav" data-page="evidence" data-icon="▶">Video đóng gói</div>
       <div class="nav" data-page="claims" data-icon="✓">Hồ sơ khiếu nại</div>
+      <div class="nav" data-page="simulator" data-icon="⚖">Sàn giả lập <span class="filter-count" id="simBadge" style="background:#fee2e2;color:#b91c1c;margin-left:4px;display:none">0</span></div>
 
       <div class="label">Báo cáo & Hệ thống</div>
       <div class="nav" data-page="reports" data-icon="▥">Báo cáo tài chính</div>
@@ -875,10 +881,12 @@
         <div>
           <b>FixIt Operations</b> · Shop Minh An (Shopee Mall / TikTok Shop)
         </div>
-        <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="pill" id="walletPill" onclick="viewWalletModal()" style="background:#ecfdf5;color:#047857;cursor:pointer;font-weight:700;border:1px solid #a7f3d0" title="Bấm để xem lịch sử biến động số dư và tiền bồi hoàn">
+            💳 Ví Shop: <span id="walletBalance">15.420.000đ</span>
+          </span>
           <span class="pill online" id="dbstate">MongoDB Atlas: Đang kết nối…</span>
-          <button class="btn-xs secondary" onclick="resetSeedData()" title="Khôi phục toàn bộ dữ liệu mẫu đầy đủ">↻ Nạp
-            lại dữ liệu mẫu</button>
+          <button class="btn-xs secondary" onclick="resetSeedData()" title="Khôi phục toàn bộ dữ liệu mẫu đầy đủ">↻ Nạp lại dữ liệu</button>
         </div>
       </div>
       <div id="app"></div>

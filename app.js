@@ -11,6 +11,7 @@ const storeRoutes = require('./routes/storeRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const seedRoutes = require('./routes/seedRoutes');
+const simulatorRoutes = require('./routes/simulatorRoutes');
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
@@ -33,6 +34,7 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/seed', seedRoutes);
+app.use('/api/simulator', simulatorRoutes);
 
 app.use((err, _req, res, _next) => {
   const status =

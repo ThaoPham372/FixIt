@@ -5,6 +5,8 @@ let orders = [];
 let claims = [];
 let products = [];
 let stores = [];
+let simulatorData = null;
+let simulatorFilter = 'all';
 let reportsData = null;
 let modalGeneration = 0;
 let orderFilter = 'all';
@@ -75,9 +77,32 @@ async function init() {
   render();
 }
 
+async function refreshWalletState() {
+  try {
+    const data = await api('/simulator/claims');
+    const walletBalanceElem = document.querySelector('#walletBalance');
+    if (walletBalanceElem && data?.stats) {
+      walletBalanceElem.textContent = formatMoney(data.stats.walletBalance);
+    }
+    const badge = document.querySelector('#simBadge');
+    if (badge && data?.stats) {
+      if (data.stats.pendingReview > 0) {
+        badge.textContent = data.stats.pendingReview;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    return data;
+  } catch (e) {
+    console.warn('Lỗi cập nhật số dư ví:', e);
+  }
+}
+
 async function loadAllData() {
   try {
     [orders, claims] = await Promise.all([api('/orders'), api('/claims')]);
+    await refreshWalletState();
   } catch (e) {
     console.error('Lỗi tải dữ liệu:', e);
   }
@@ -91,6 +116,9 @@ async function loadCurrentPageData() {
     if (page === 'claims' || page === 'home') {
       claims = await api('/claims');
     }
+    if (page === 'simulator') {
+      simulatorData = await api('/simulator/claims');
+    }
     if (page === 'products') {
       products = await api('/products');
     }
@@ -103,6 +131,7 @@ async function loadCurrentPageData() {
     if (page === 'reports') {
       reportsData = await api('/reports');
     }
+    await refreshWalletState();
   } catch (e) {
     console.warn('Lỗi tải trang:', e);
   }
@@ -136,6 +165,10 @@ document.addEventListener('fixit-order-action', async (event) => {
     viewEvidenceModal(code);
   } else if (action === 'view-detail') {
     viewOrderDetailModal(code);
+  } else if (action === 'view-simulator') {
+    go('simulator');
+  } else if (action === 'view-wallet') {
+    viewWalletModal();
   }
 });
 
@@ -150,6 +183,7 @@ async function render() {
     returns: 'Tiếp nhận kiện hàng hoàn về',
     evidence: 'Kho video & Bằng chứng đóng hàng',
     claims: 'Hồ sơ tranh chấp & Khiếu nại sàn',
+    simulator: 'Sàn TMĐT Giả lập (Dispute Resolution Portal)',
     reports: 'Báo cáo tài chính & Thu hồi tiền',
     settings: 'Cài đặt hệ thống',
   };
@@ -184,6 +218,8 @@ async function render() {
     renderEvidence(h);
   } else if (page === 'claims') {
     renderClaims(h);
+  } else if (page === 'simulator') {
+    renderSimulator(h);
   } else if (page === 'reports') {
     renderReports(h);
   } else if (page === 'settings') {
@@ -684,6 +720,149 @@ function renderClaims(header) {
     }
     </div>
   `;
+}
+
+// 8.5. TRANG SÀN GIẢ LẬP (DISPUTE SIMULATOR & ARBITRATION)
+function renderSimulator(header) {
+  const stats = simulatorData?.stats || {
+    totalSubmitted: claims.length,
+    pendingReview: claims.filter((c) => ['Đang khiếu nại', 'Chờ gửi sàn', 'Bản nháp'].includes(c.status)).length,
+    approvedCount: claims.filter((c) => c.status === 'Đã bồi hoàn').length,
+    rejectedCount: claims.filter((c) => c.status === 'Bị từ chối').length,
+    totalCompensated: claims.reduce((s, c) => s + (c.receivedAmount || 0), 0),
+    approvalRate: 85,
+    walletBalance: 15420000,
+  };
+
+  const allClaims = simulatorData?.claims || claims || [];
+  let filtered = allClaims;
+  if (simulatorFilter === 'pending') {
+    filtered = allClaims.filter((c) => ['Đang khiếu nại', 'Chờ gửi sàn', 'Bản nháp'].includes(c.status));
+  } else if (simulatorFilter === 'approved') {
+    filtered = allClaims.filter((c) => c.status === 'Đã bồi hoàn');
+  } else if (simulatorFilter === 'rejected') {
+    filtered = allClaims.filter((c) => c.status === 'Bị từ chối');
+  }
+
+  app.innerHTML = `
+    ${header}
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-title">Tổng hồ sơ sàn tiếp nhận</div>
+        <div class="number">${stats.totalSubmitted}</div>
+        <small class="sub">Hồ sơ từ shop gửi qua Open API</small>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Chờ trọng tài sàn duyệt</div>
+        <div class="number ${stats.pendingReview > 0 ? 'amber' : ''}">${stats.pendingReview}</div>
+        <small class="sub">Cần phán quyết đối chiếu video</small>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Tỷ lệ duyệt bồi hoàn</div>
+        <div class="number" style="color:#0284c7">${stats.approvalRate}%</div>
+        <small class="sub">Bằng chứng video FixIt bảo vệ</small>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Tổng tiền đã đền bù vào ví</div>
+        <div class="number" style="color:#059669">${formatMoney(stats.totalCompensated)}</div>
+        <small class="sub">Đã giải ngân về số dư ví người bán</small>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <div>
+          <h2 style="margin:0 0 4px">⚖️ Cổng Trọng tài Giải quyết Tranh chấp Sàn TMĐT (Dispute Arbitrator)</h2>
+          <small class="sub">Mô phỏng bộ phận Trọng tài Khiếu nại Shopee / TikTok Shop xem xét bằng chứng và ra phán quyết</small>
+        </div>
+        <button class="btn secondary" onclick="viewWalletModal()">💳 Xem Ví Người Bán</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto">
+        <button class="step ${simulatorFilter === 'all' ? 'on' : ''}" onclick="setSimulatorFilter('all')">
+          Tất cả <span class="filter-count">${stats.totalSubmitted}</span>
+        </button>
+        <button class="step ${simulatorFilter === 'pending' ? 'on' : ''}" onclick="setSimulatorFilter('pending')">
+          ⏳ Chờ sàn duyệt <span class="filter-count" style="background:#fee2e2;color:#b91c1c">${stats.pendingReview}</span>
+        </button>
+        <button class="step ${simulatorFilter === 'approved' ? 'on' : ''}" onclick="setSimulatorFilter('approved')">
+          ✅ Đã chấp thuận <span class="filter-count" style="background:#dcfce7;color:#15803d">${stats.approvedCount}</span>
+        </button>
+        <button class="step ${simulatorFilter === 'rejected' ? 'on' : ''}" onclick="setSimulatorFilter('rejected')">
+          ❌ Đã từ chối <span class="filter-count">${stats.rejectedCount}</span>
+        </button>
+      </div>
+
+      ${filtered.length ? `
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Mã tranh chấp / Ngày gửi</th>
+                <th>Mã đơn / Kênh</th>
+                <th>Lý do & Khác biệt AI</th>
+                <th style="width:125px;text-align:center">Cấp độ chứng cứ</th>
+                <th>Số tiền yêu cầu</th>
+                <th style="width:145px;text-align:center">Trạng thái sàn</th>
+                <th style="width:180px;text-align:right">Phán quyết</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map((c) => {
+                const isPending = ['Đang khiếu nại', 'Chờ gửi sàn', 'Bản nháp'].includes(c.status);
+                const isApproved = c.status === 'Đã bồi hoàn';
+                const isShopee = (c.channel || '').toLowerCase().includes('shopee');
+                return `
+                  <tr>
+                    <td>
+                      <b style="color:var(--ink)">${esc(c.apiDisputeId || `DISPUTE-#${c._id.slice(-6).toUpperCase()}`)}</b>
+                      <br><small class="sub">${formatDate(c.submittedAt || c.createdAt)}</small>
+                    </td>
+                    <td>
+                      <b>#${esc(c.orderCode)}</b>
+                      <br>
+                      <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}" style="margin-top:2px">
+                        ${esc(c.channel || 'Shopee')}
+                      </span>
+                    </td>
+                    <td>
+                      <b>${esc(c.reason)}</b>
+                      <br><small class="sub">${esc(c.description || '').slice(0, 75)}${(c.description || '').length > 75 ? '...' : ''}</small>
+                    </td>
+                    <td style="text-align:center">
+                      <span class="tag-fixed ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : 'tag-info'}">
+                        ⭐ ${esc(c.evidenceStrength || 'Mạnh')}
+                      </span>
+                    </td>
+                    <td><b>${formatMoney(c.claimAmount)}</b></td>
+                    <td style="text-align:center">
+                      <span class="tag-status ${isApproved ? 'tag-success' : isPending ? 'tag-warn' : 'tag-danger'}">
+                        ${isApproved ? 'Đã bồi hoàn' : isPending ? 'Chờ sàn duyệt' : 'Bị từ chối'}
+                      </span>
+                    </td>
+                    <td style="text-align:right">
+                      ${isPending
+                        ? `<button class="btn-action-main danger" style="width:160px" onclick="openDisputeJudgeModal('${c._id}')">⚖️ Trọng tài phán quyết</button>`
+                        : `<button class="btn-action-main secondary" style="width:160px" onclick="openDisputeJudgeModal('${c._id}')">👁️ Xem phán quyết</button>`
+                      }
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <div class="empty-state">Không có hồ sơ nào trong mục này.</div>
+      `}
+    </div>
+  `;
+}
+
+function setSimulatorFilter(filter) {
+  simulatorFilter = filter;
+  render();
 }
 
 // 9. TRANG BÁO CÁO (REPORTS)
@@ -1357,10 +1536,27 @@ async function viewClaimDetailModal(claimId) {
       <h2>⚖️ Hồ sơ khiếu nại #${esc(c.orderCode)}</h2>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}">${esc(c.channel || 'Shopee')}</span>
-        <span class="tag ${c.status === 'Đã bồi hoàn' ? 'tag-success' : c.status === 'Đang khiếu nại' ? 'tag-warn' : 'tag-info'}">${esc(c.status)}</span>
+        <span class="tag-status ${c.status === 'Đã bồi hoàn' ? 'tag-success' : c.status === 'Bị từ chối' ? 'tag-danger' : c.status === 'Đang khiếu nại' ? 'tag-warn' : 'tag-info'}">${esc(c.status)}</span>
       </div>
 
-      ${isSubmitted
+      ${c.status === 'Đã bồi hoàn'
+        ? `
+        <div class="notice success" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;margin-bottom:14px">
+          <b style="font-size:13.5px">🎉 SÀN ĐÃ CHẤP THUẬN BỒI HOÀN ${formatMoney(c.receivedAmount || c.approvedAmount)}</b>
+          <div style="margin-top:4px;font-size:12px">Tiền đã được giải ngân trực tiếp vào Ví Người Bán. ${c.notes ? `<br><b>Ghi chú:</b> ${esc(c.notes)}` : ''}</div>
+          <div style="margin-top:8px">
+            <button class="btn-xs secondary" onclick="closeModal(); viewWalletModal()">💳 Xem số dư Ví Người Bán</button>
+          </div>
+        </div>
+        `
+        : c.status === 'Bị từ chối'
+        ? `
+        <div class="notice danger" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;margin-bottom:14px">
+          <b style="font-size:13.5px">⚠️ KHIẾU NẠI BỊ TỪ CHỐI BỒI HOÀN</b>
+          <div style="margin-top:4px;font-size:12px"><b>Lý do từ chối:</b> ${esc(c.notes || 'Không đủ chứng cứ')}</div>
+        </div>
+        `
+        : isSubmitted
         ? `
         <div class="notice success" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;margin-bottom:14px">
           <b>🚀 ĐÃ NỘP QUA OPEN API SÀN ${esc(c.channel || 'TMĐT').toUpperCase()} THÀNH CÔNG</b>
@@ -1369,6 +1565,11 @@ async function viewClaimDetailModal(claimId) {
             • <b>Thời gian gửi:</b> ${formatDate(c.submittedAt)}<br>
             • <b>Cổng tiếp nhận:</b> ${esc(c.platformResponse?.provider || 'Open API Gateway')}<br>
             • <b>Thời hạn sàn cam kết xử lý:</b> <b>${esc(c.platformResponse?.estimatedReviewTime || '48 giờ')}</b>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn-xs danger" style="padding:4px 10px;font-weight:700;cursor:pointer" onclick="closeModal(); go('simulator'); setTimeout(() => openDisputeJudgeModal('${c._id}'), 200)">
+              ⚖️ Mở tab Sàn giả lập để phán quyết ngay
+            </button>
           </div>
         </div>
       `
@@ -1640,6 +1841,298 @@ async function findEvidence() {
   }
 }
 
+// Modal trọng tài sàn TMĐT thẩm định & phán quyết khiếu nại
+async function openDisputeJudgeModal(claimId) {
+  try {
+    const c = await api(`/claims/${claimId}`);
+    const isPending = ['Đang khiếu nại', 'Chờ gửi sàn', 'Bản nháp'].includes(c.status);
+    const isApproved = c.status === 'Đã bồi hoàn';
+    const isRejected = c.status === 'Bị từ chối';
+    const isShopee = (c.channel || '').toLowerCase().includes('shopee');
+    const platformName = isShopee ? 'Shopee Dispute Resolution Portal' : 'TikTok Shop Reverse Dispute Portal';
+    const files = c.evidenceFiles || [];
+    const packingFile = files.find((f) => f.kind === 'packing');
+    const returnFile = files.find((f) => f.kind === 'return');
+    const differences = c.differences && c.differences.length ? c.differences : (c.order?.aiAnalysis?.differences || []);
+
+    const content = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}">${esc(c.channel || 'Shopee')}</span>
+            <b style="font-size:13px;color:var(--muted)">${esc(platformName)}</b>
+          </div>
+          <h2 style="margin:4px 0 0;font-size:20px">⚖️ Thẩm định & Phán quyết hồ sơ #${esc(c.apiDisputeId || c._id)}</h2>
+          <small class="sub">Đơn hàng #${esc(c.orderCode)} · Khách hàng: ${esc(c.order?.customerName || 'N/A')}</small>
+        </div>
+        <span class="tag-status ${isApproved ? 'tag-success' : isPending ? 'tag-warn' : 'tag-danger'}" style="font-size:12px">
+          ${isApproved ? 'Đã bồi hoàn' : isPending ? 'Chờ trọng tài duyệt' : 'Bị từ chối'}
+        </span>
+      </div>
+
+      ${isApproved ? `
+        <div class="notice success" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;margin-bottom:14px">
+          <b style="font-size:14px">🎉 PHÁN QUYẾT: SÀN CHẤP THUẬN BỒI HOÀN ${formatMoney(c.receivedAmount || c.approvedAmount)} CHO NGƯỜI BÁN</b>
+          <div style="margin-top:6px;font-size:12.5px">
+            • <b>Số tiền đã giải ngân vào ví người bán:</b> <span style="font-weight:700;color:#059669">${formatMoney(c.receivedAmount || c.approvedAmount)}</span><br>
+            • <b>Ghi chú trọng tài:</b> ${esc(c.notes || 'Bằng chứng video đối chiếu hợp lệ 100%.')}<br>
+            • <b>Thời gian giải quyết:</b> ${formatDate(c.updatedAt)}
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn-xs secondary" onclick="viewWalletModal()">💳 Xem biến động Số dư Ví Người Bán</button>
+          </div>
+        </div>
+      ` : isRejected ? `
+        <div class="notice danger" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;margin-bottom:14px">
+          <b style="font-size:14px">⚠️ PHÁN QUYẾT: SÀN TỪ CHỐI YÊU CẦU BỒI HOÀN CỦA NGƯỜI BÁN</b>
+          <div style="margin-top:6px;font-size:12.5px">
+            • <b>Lý do từ chối:</b> <span style="font-weight:700">${esc(c.notes || 'Bằng chứng chưa đạt tiêu chuẩn sàn')}</span><br>
+            • <b>Thời gian giải quyết:</b> ${formatDate(c.updatedAt)}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="panel" style="padding:12px;background:#f9fbfb;margin:0 0 14px">
+        <div class="row">
+          <div><small class="sub">Mã vận đơn gửi:</small><br><b>${esc(c.trackingCode || c.order?.trackingCode || 'N/A')}</b></div>
+          <div><small class="sub">Mã vận đơn hoàn:</small><br><b>${esc(c.returnTrackingCode || c.order?.returnTrackingCode || 'N/A')}</b></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><small class="sub">Lý do khách trả hàng:</small><br><b>${esc(c.order?.returnReason || 'Không rõ')}</b></div>
+          <div><small class="sub">Số tiền yêu cầu bồi hoàn:</small><br><b style="color:var(--green);font-size:15px">${formatMoney(c.claimAmount)}</b></div>
+        </div>
+      </div>
+
+      <!-- VIDEO ĐỐI SOÁT TRỰC TIẾP -->
+      <div style="margin-bottom:14px">
+        <b style="font-size:13.5px">📹 Bằng chứng video đối soát từ FixIt:</b>
+        <div class="row" style="margin-top:8px">
+          <div class="panel" style="padding:10px;margin:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <b>1. Video đóng gói lúc gửi</b>
+              <span class="tag tag-success" style="font-size:10px">Kho Shop</span>
+            </div>
+            ${packingFile ? `
+              <video id="simVideoPacking" controls width="100%" src="${packingFile.url}" style="border-radius:8px;max-height:220px;background:#000"></video>
+            ` : '<p class="sub" style="padding:40px 0;text-align:center">Không có video đóng gói</p>'}
+          </div>
+
+          <div class="panel" style="padding:10px;margin:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <b>2. Video mở kiện lúc nhận hoàn</b>
+              <span class="tag tag-danger" style="font-size:10px">Khách trả</span>
+            </div>
+            ${returnFile ? `
+              <video id="simVideoReturn" controls width="100%" src="${returnFile.url}" style="border-radius:8px;max-height:220px;background:#000"></video>
+            ` : '<p class="sub" style="padding:40px 0;text-align:center">Không có video mở kiện</p>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- KẾT QUẢ AI & GIẢI TRÌNH -->
+      <div class="panel" style="padding:14px;background:#fbfdfe;margin:0 0 14px">
+        <b style="color:var(--green)">🤖 Kết quả phân tích đối soát từ AI Vision:</b>
+        ${differences && differences.length ? `
+          <ul style="margin:8px 0;padding-left:18px;font-size:13px;line-height:1.5">
+            ${differences.map((d) => `<li><b>${typeof d === 'object' ? esc(d.description || JSON.stringify(d)) : esc(d)}</b></li>`).join('')}
+          </ul>
+        ` : `
+          <div style="margin:6px 0;font-size:13px;color:var(--muted)">${esc(c.description || 'Không có mô tả chi tiết khác biệt')}</div>
+        `}
+        <div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">
+          <small class="sub">Văn bản người bán giải trình:</small>
+          <div style="background:#fff;padding:8px 10px;border-radius:6px;border:1px solid var(--line);font-size:12px;margin-top:4px;white-space:pre-wrap;max-height:90px;overflow-y:auto">
+            ${esc(c.claimTemplateText || c.description || 'Không có văn bản')}
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM PHÁN QUYẾT TRỌNG TÀI SÀN -->
+      ${isPending ? `
+        <div class="panel" style="padding:16px;background:#fefce8;border:1px solid #fef08a;margin:0 0 14px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+            <span style="font-size:18px">⚖️</span>
+            <b style="font-size:14px;color:#854d0e">Bảng điều khiển Trọng tài Sàn TMĐT</b>
+          </div>
+
+          <div class="field" style="margin:8px 0">
+            <label>Số tiền sàn chấp thuận bồi hoàn (VNĐ):</label>
+            <input type="number" id="judgeAmount" value="${c.claimAmount || 0}" style="font-size:15px;font-weight:700;color:#047857" />
+            <small class="sub">Mặc định bồi hoàn 100% giá trị đơn hàng yêu cầu.</small>
+          </div>
+
+          <div class="field" style="margin:8px 0">
+            <label>Lý do từ chối (Chỉ áp dụng nếu Trọng tài chọn Từ chối):</label>
+            <select id="judgeRejectReason">
+              <option value="Bằng chứng video không quay đủ 6 mặt kiện hàng theo chuẩn sàn">Bằng chứng video không quay đủ 6 mặt kiện hàng theo chuẩn sàn</option>
+              <option value="Không có video hoặc tem niêm phong đã bị rách trước khi quay">Không có video hoặc tem niêm phong đã bị rách trước khi quay</option>
+              <option value="Sản phẩm hoàn về đúng với đơn hàng gốc, không có hư hại thực tế">Sản phẩm hoàn về đúng với đơn hàng gốc, không có hư hại thực tế</option>
+              <option value="Quá thời hạn khiếu nại (quá 48h kể từ khi nhận kiện hoàn)">Quá thời hạn khiếu nại (quá 48h kể từ khi nhận kiện hoàn)</option>
+            </select>
+          </div>
+
+          <div class="field" style="margin:8px 0">
+            <label>Ghi chú phán quyết của trọng tài:</label>
+            <input type="text" id="judgeNote" placeholder="VD: Đã xác thực video đóng gói có mã vận đơn trùng khớp..." />
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+            <button class="btn danger" style="padding:10px 16px;font-weight:700;border-radius:8px" onclick="executeJudgeDecision('${c._id}', 'reject')">
+              ❌ Từ chối khiếu nại
+            </button>
+            <button class="btn" style="background:#059669;color:white;padding:10px 18px;font-weight:700;border-radius:8px" onclick="executeJudgeDecision('${c._id}', 'approve')">
+              ✅ Chấp thuận & Giải ngân vào ví
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="end">
+        <button class="btn secondary" onclick="closeModal()">Đóng cửa sổ</button>
+      </div>
+    `;
+
+    show(content, null, 'large');
+  } catch (e) {
+    alert('Lỗi tải hồ sơ thẩm định: ' + e.message);
+  }
+}
+
+// Thực thi quyết định của trọng tài sàn (Chấp thuận hoặc Từ chối)
+async function executeJudgeDecision(claimId, action) {
+  try {
+    const approvedAmount = Number(document.querySelector('#judgeAmount')?.value) || 0;
+    const rejectionReason = document.querySelector('#judgeRejectReason')?.value;
+    const note = document.querySelector('#judgeNote')?.value || '';
+
+    if (action === 'approve') {
+      if (!confirm(`Bạn có chắc chắn muốn CHẤP THUẬN bồi hoàn số tiền ${formatMoney(approvedAmount)} và giải ngân ngay vào Ví Người Bán?`)) {
+        return;
+      }
+    } else if (action === 'reject') {
+      if (!confirm(`Bạn có chắc chắn muốn TỪ CHỐI khiếu nại này với lý do:\n"${rejectionReason}"?`)) {
+        return;
+      }
+    }
+
+    const res = await api('/simulator/resolve', json({
+      claimId,
+      action,
+      approvedAmount,
+      rejectionReason,
+      note,
+    }));
+
+    if (action === 'approve') {
+      alert(`🎉 ĐÃ CHẤP THUẬN BỒI HOÀN!\n\n• Sàn đã hoàn ${formatMoney(res.wallet?.transactions?.[0]?.amount || approvedAmount)} vào Số dư Ví Người Bán.\n• Trạng thái đơn và lịch sử timeline đã được cập nhật.`);
+    } else {
+      alert(`❌ ĐÃ TỪ CHỐI KHIẾU NẠI!\n\n• Đơn hàng đã chuyển sang trạng thái "Khiếu nại bị từ chối".\n• Không phát sinh giải ngân tiền.`);
+    }
+
+    await loadAllData();
+    if (page === 'simulator') {
+      simulatorData = await api('/simulator/claims');
+      render();
+    }
+    // Cập nhật lại nội dung modal với trạng thái mới
+    openDisputeJudgeModal(claimId);
+  } catch (e) {
+    alert('Lỗi phán quyết: ' + e.message);
+  }
+}
+
+// Modal xem thông tin ví người bán & lịch sử biến động số dư
+async function viewWalletModal() {
+  try {
+    const wallet = await api('/simulator/wallet');
+    const transactions = wallet.transactions || [];
+
+    const content = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px">
+        <div>
+          <h2 style="margin:0;font-size:20px">💳 Ví Người Bán & Quỹ Bồi Hoàn Hàng Hoàn</h2>
+          <small class="sub">${esc(wallet.shopName || 'Shop Minh An')} · Mã shop: <code>${esc(wallet.shopCode || 'MINH-AN-SHOP')}</code></small>
+        </div>
+        <span class="pill online">Đang hoạt động</span>
+      </div>
+
+      <div class="row" style="margin-bottom:16px">
+        <div class="panel" style="background:#ecfdf5;border-color:#a7f3d0;padding:16px;margin:0">
+          <small class="sub" style="color:#065f46;font-weight:600">SỐ DƯ KHẢ DỤNG HIỆN TẠI</small>
+          <div style="font-size:28px;font-weight:800;color:#047857;margin-top:4px" id="modalWalletBalance">
+            ${formatMoney(wallet.balance)}
+          </div>
+          <small class="sub" style="color:#047857">Sẵn sàng rút về tài khoản ngân hàng</small>
+        </div>
+
+        <div class="panel" style="background:#f0f9ff;border-color:#bae6fd;padding:16px;margin:0">
+          <small class="sub" style="color:#0369a1;font-weight:600">TỔNG TIỀN ĐÃ ĐƯỢC BỒI HOÀN</small>
+          <div style="font-size:28px;font-weight:800;color:#0284c7;margin-top:4px">
+            ${formatMoney(wallet.totalCompensated)}
+          </div>
+          <small class="sub" style="color:#0284c7">Shopee & TikTok Shop đã đền bù thành công</small>
+        </div>
+      </div>
+
+      <div class="notice info" style="margin:0 0 16px">
+        💡 <b>Cơ chế bồi hoàn tự động:</b> Khi hồ sơ khiếu nại được Trọng tài trên <b>Sàn Giả Lập</b> chấp thuận, toàn bộ số tiền đền bù sẽ lập tức được cộng trực tiếp vào Số Dư Ví này và hiển thị trong danh sách giao dịch dưới đây.
+      </div>
+
+      <div class="panel" style="padding:14px;margin:0 0 14px">
+        <h3 style="margin:0 0 12px;font-size:15px">Lịch sử giao dịch bồi hoàn & biến động số dư</h3>
+        ${transactions.length ? `
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th style="width:115px;text-align:center">Sàn</th>
+                  <th>Mã đơn</th>
+                  <th>Nội dung giao dịch</th>
+                  <th style="text-align:right">Số tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transactions.map((t) => {
+                  const isShopee = (t.channel || '').toLowerCase().includes('shopee');
+                  return `
+                    <tr>
+                      <td style="font-size:12px;color:var(--muted)">${formatDate(t.date)}</td>
+                      <td style="text-align:center">
+                        <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}">
+                          ${esc(t.channel || 'Shopee')}
+                        </span>
+                      </td>
+                      <td><b>#${esc(t.orderCode)}</b></td>
+                      <td>
+                        <b>${esc(t.title)}</b>
+                        <br><small class="sub">${esc(t.note || '')}</small>
+                      </td>
+                      <td style="text-align:right">
+                        <b style="color:#059669;font-size:14px">+${formatMoney(t.amount)}</b>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div class="empty-state">Chưa có giao dịch biến động số dư nào.</div>
+        `}
+      </div>
+
+      <div class="end">
+        <button class="btn secondary" onclick="closeModal()">Đóng</button>
+      </div>
+    `;
+
+    show(content, null, 'large');
+  } catch (e) {
+    alert('Lỗi tải thông tin ví: ' + e.message);
+  }
+}
+
 async function setStatus(code, status) {
   try {
     await api(`/orders/${encodeURIComponent(code)}/status`, {
@@ -1654,9 +2147,9 @@ async function setStatus(code, status) {
   }
 }
 
-function show(html, onClose = null) {
+function show(html, onClose = null, extraClass = '') {
   modalGeneration++;
-  window.FixItModal.show(html, onClose);
+  window.FixItModal.show(html, onClose, extraClass);
 }
 
 function closeModal() {
