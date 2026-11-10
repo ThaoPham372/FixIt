@@ -881,11 +881,14 @@
         <div>
           <b>FixIt Operations</b> · Shop Minh An (Shopee Mall / TikTok Shop)
         </div>
+        <div style="display:flex;align-items:center;gap:12px">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="pill" id="walletPill" onclick="viewWalletModal()" style="background:#ecfdf5;color:#047857;cursor:pointer;font-weight:700;border:1px solid #a7f3d0" title="Bấm để xem lịch sử biến động số dư và tiền bồi hoàn">
             💳 Ví Shop: <span id="walletBalance">15.420.000đ</span>
           </span>
           <span class="pill online" id="dbstate">MongoDB Atlas: Đang kết nối…</span>
+          <button class="btn-xs secondary" onclick="resetSeedData()" title="Khôi phục toàn bộ dữ liệu mẫu đầy đủ">↻ Nạp
+            lại dữ liệu mẫu</button>
           <button class="btn-xs secondary" onclick="resetSeedData()" title="Khôi phục toàn bộ dữ liệu mẫu đầy đủ">↻ Nạp lại dữ liệu</button>
         </div>
       </div>

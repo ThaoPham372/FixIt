@@ -1,8 +1,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Claim = require('../models/Claim');
-const { uploadDir } = require('../services/mediaStorage');
+const {
+  uploadDir,
+  saveToGridFS,
+  getGridFSStream,
+  getGridFSFileInfo,
+} = require('../services/mediaStorage');
 const { compareVideos } = require('../services/geminiVideoService');
 
 // Tìm đơn hàng theo mã đơn, mã vận đơn gửi hoặc mã vận đơn hoàn
@@ -95,19 +102,51 @@ exports.listEvidence = async (req, res) => {
 exports.uploadEvidence = async (req, res) => {
   const order = await findOrder(req.params.code);
   if (!order) {
-    if (req.file) fs.unlinkSync(req.file.path);
     return res.status(404).json({ error: 'Không tìm thấy đơn hàng.' });
   }
   if (!req.file) return res.status(400).json({ error: 'Chưa chọn tệp.' });
 
   const kind = ['packing', 'return', 'photo'].includes(req.body.kind) ? req.body.kind : 'packing';
+  const ext = path.extname(req.file.originalname || '.mp4').slice(0, 12) || '.mp4';
+  const filename = `${Date.now()}-${crypto.randomUUID()}${ext}`;
+
+  let gridFsId = null;
+  let storageType = 'disk';
+
+  // 1. Lưu trực tiếp vào MongoDB Atlas GridFS (Vĩnh viễn, không phụ thuộc /tmp hay container cold start)
+  if (mongoose.connection.readyState === 1 && req.file.buffer) {
+    try {
+      gridFsId = await saveToGridFS(req.file.buffer, filename, {
+        orderCode: order.code,
+        kind,
+        originalName: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+      storageType = 'gridfs';
+    } catch (gErr) {
+      console.warn('Lỗi lưu GridFS, chuyển sang lưu ổ cứng:', gErr.message);
+    }
+  }
+
+  // 2. Nếu ở localhost hoặc GridFS tạm thời lỗi, lưu thêm bản sao trên đĩa
+  if (!process.env.VERCEL && req.file.buffer) {
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+    } catch (diskErr) {
+      console.warn('Lỗi ghi đĩa cục bộ:', diskErr.message);
+    }
+  }
+
   order.evidence.push({
     kind,
-    filename: req.file.filename,
+    filename,
     originalName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
     note: req.body.note || '',
+    gridFsId,
+    storageType,
   });
 
   const evidence = order.evidence.at(-1);
@@ -139,14 +178,76 @@ exports.streamEvidence = async (req, res) => {
   const order = await Order.findOne({ 'evidence._id': req.params.id });
   if (!order) return res.status(404).end();
   const file = order.evidence.id(req.params.id);
-  const baseName = path.basename(file.filename);
+  if (!file) return res.status(404).end();
 
+  const contentType = file.mimeType || 'video/mp4';
+
+  // 1. Ưu tiên phát video từ MongoDB Atlas GridFS (hỗ trợ HTTP 206 Partial Content / Range Requests)
+  if (file.gridFsId) {
+    try {
+      const info = await getGridFSFileInfo(file.gridFsId);
+      if (info) {
+        const total = info.length;
+        const range = req.headers.range;
+
+        if (range) {
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+          const chunksize = end - start + 1;
+
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${total}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunksize,
+            'Content-Type': contentType,
+          });
+          const stream = getGridFSStream(file.gridFsId, { start, end: end + 1 });
+          return stream.pipe(res);
+        } else {
+          res.writeHead(200, {
+            'Content-Length': total,
+            'Content-Type': contentType,
+            'Accept-Ranges': 'bytes',
+          });
+          const stream = getGridFSStream(file.gridFsId);
+          return stream.pipe(res);
+        }
+      }
+    } catch (gErr) {
+      console.warn('Lỗi stream từ GridFS:', gErr.message);
+    }
+  }
+
+  // 2. Dự phòng: Đọc tệp từ ổ đĩa cục bộ (dành cho các video mock/seed ban đầu)
+  const baseName = path.basename(file.filename);
   let fullPath = path.join(uploadDir, baseName);
   if (!fs.existsSync(fullPath)) {
     fullPath = path.join(__dirname, '..', 'uploads', baseName);
   }
   if (!fs.existsSync(fullPath)) return res.status(404).end();
-  res.type(file.mimeType || 'application/octet-stream').sendFile(fullPath);
+
+  const stat = fs.statSync(fullPath);
+  const total = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+    const chunksize = end - start + 1;
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${total}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': contentType,
+    });
+    const stream = fs.createReadStream(fullPath, { start, end });
+    return stream.pipe(res);
+  }
+
+  res.type(contentType).sendFile(fullPath);
 };
 
 exports.scanReturn = async (req, res) => {

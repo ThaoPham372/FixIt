@@ -1,7 +1,7 @@
 const app = require('../app');
 const connectDatabase = require('../config/database');
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   const uri =
     process.env.MONGODB_URI ||
     'mongodb+srv://tuongthao02101992_db_user:aiOeMicIQ5vsp9Ms@cluster0.fjuzvqh.mongodb.net/fixit?retryWrites=true&w=majority';
@@ -15,3 +15,9 @@ module.exports = async (req, res) => {
   return app(req, res);
 };
 
+module.exports = handler;
+module.exports.config = {
+  api: {
+    bodyParser: false,
+  },
+};

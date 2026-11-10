@@ -17,6 +17,7 @@ class OrderTable extends HTMLElement {
       else if (status.includes('nguyên vẹn')) cls += ' tag-success';
       else if (status.includes('hoàn') || status.includes('kiểm tra')) cls += ' tag-danger';
       else if (status.includes('khiếu nại')) cls += ' tag-danger';
+      else if (status.includes('nguyên vẹn')) cls += ' tag-success';
       return `<span class="${cls}">${escape(status)}</span>`;
     };
 
