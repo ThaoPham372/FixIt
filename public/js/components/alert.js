@@ -282,31 +282,51 @@ class FixItAlert {
   }
 }
 
-// Khởi tạo instance toàn cục
+// Khởi tạo instance toàn cục (hoặc tự tạo nếu DOM chưa sẵn sàng)
+function getFixItAlert() {
+  if (!window.FixItAlert) {
+    const el = document.querySelector('#alert-modal') || document.body;
+    if (el) {
+      window.FixItAlert = new FixItAlert(el);
+    }
+  }
+  return window.FixItAlert;
+}
+
 window.FixItAlert = new FixItAlert(document.querySelector('#alert-modal') || document.body);
 
 // Hàm tiện ích toàn cục
 window.notify = function (message, type = null, title = null, onClose = null) {
-  if (window.FixItAlert) {
-    return window.FixItAlert.show(message, type, title, onClose);
+  const alertInstance = getFixItAlert();
+  if (alertInstance) {
+    return alertInstance.show(message, type, title, onClose);
   }
   return Promise.resolve();
 };
 
 window.confirmModal = function (message, options = {}) {
-  if (window.FixItAlert) {
-    return window.FixItAlert.confirm(message, options);
+  const alertInstance = getFixItAlert();
+  if (alertInstance) {
+    return alertInstance.confirm(message, options);
   }
-  return Promise.resolve(window.confirm ? window.confirm(message) : true);
+  return Promise.resolve(true);
 };
 
-// Ghi đè window.alert để thay thế hoàn toàn dialog mặc định của trình duyệt ("localhost:3000 says")
+// Ghi đè toàn bộ window.alert và window.confirm để không bao giờ xuất hiện popup mặc định của trình duyệt ("localhost:3000 says")
 if (typeof window !== 'undefined') {
-  const _nativeAlert = window.alert;
   window.alert = function (message) {
-    if (window.FixItAlert) {
-      return window.FixItAlert.show(message);
+    const alertInstance = getFixItAlert();
+    if (alertInstance) {
+      return alertInstance.show(message);
     }
-    return _nativeAlert ? _nativeAlert(message) : undefined;
+    return Promise.resolve();
+  };
+
+  window.confirm = function (message) {
+    const alertInstance = getFixItAlert();
+    if (alertInstance) {
+      return alertInstance.confirm(message);
+    }
+    return true;
   };
 }

@@ -195,23 +195,83 @@ async function render() {
     settings: 'Cài đặt hệ thống',
   };
 
-  let h = `
-    <div class="heading">
-      <div>
-        <h1>${titles[page]}</h1>
-        <small class="sub">Hệ thống gom bằng chứng tự động, đối soát AI và theo dõi tiền bồi hoàn.</small>
+  const subtitles = {
+    home: 'Hệ thống gom bằng chứng tự động, đối soát AI và theo dõi tiền bồi hoàn.',
+    orders: 'Đồng bộ đơn hàng từ TikTok Shop, Shopee và Web về một luồng xử lý tập trung.',
+    shipping: 'Điều phối vận chuyển, theo dõi lộ trình và kiểm soát giao nhận liên hãng.',
+    products: 'Danh mục sản phẩm, cảnh báo tỷ lệ hoàn và đánh giá mức độ rủi ro SKU.',
+    inventory: 'Kiểm soát tồn kho realtime, cảnh báo dưới định mức và tự động đồng bộ đa sàn.',
+    stores: 'Quản lý kết nối API, token ủy quyền và trạng thái đồng bộ gian hàng TMĐT.',
+    returns: 'Tiếp nhận bưu kiện hoàn, quay video bóc kiện và tự động đối chiếu AI.',
+    evidence: 'Lưu trữ chứng cứ video đóng hàng & mở kiện hoàn chuẩn kháng cáo Shopee/TikTok.',
+    claims: 'Theo dõi tiến độ bồi thường, quản lý văn bản giải trình và hồ sơ gửi sàn.',
+    simulator: 'Môi trường mô phỏng cổng thẩm định khiếu nại và phán quyết tranh chấp của sàn.',
+    reconciliation: 'Đối chiếu doanh thu, phí sàn, chênh lệch cước vận chuyển và dòng tiền thực nhận.',
+    invoices: 'Quản lý phát hành hóa đơn điện tử VAT tự động kết nối cơ quan thuế.',
+    reports: 'Báo cáo tổng quan hiệu quả kinh doanh, tổn thất hàng hoàn và chi phí vận hành.',
+    settings: 'Cấu hình tham số hệ thống, kết nối MongoDB Atlas và tài khoản shop.',
+  };
+
+  const getGroupLabel = (p) => {
+    if (['returns', 'evidence', 'claims', 'simulator'].includes(p)) {
+      return 'TRỌNG TÂM HÀNG HOÀN · LIVE OPS';
+    }
+    if (['reconciliation', 'invoices', 'reports', 'settings'].includes(p)) {
+      return 'TÀI CHÍNH & KẾ TOÁN TMĐT';
+    }
+    return 'BÁN HÀNG & VẬN HÀNH ĐA KÊNH';
+  };
+
+  // Helper tạo PageHero chuẩn nhịp Dark-to-Light tích hợp KPI & Chip Popover
+  window.renderPageHero = function ({ breadcrumb, title, subtitle, isMock = false, mockDesc = '', primaryAction = '', kpis = [] }) {
+    const kpiHtml = kpis && kpis.length ? `
+      <div class="hero-kpi-grid reveal-stagger">
+        ${kpis.map((k, i) => `
+          <div class="hero-kpi-card" style="--i:${i}">
+            <div class="hero-kpi-label">${esc(k.label)}</div>
+            <div class="hero-kpi-value ${k.isCountUp ? 'count-up' : ''}" data-target="${esc(k.value)}">${esc(k.value)}</div>
+            <div class="hero-kpi-sub">
+              ${k.dot ? `<span class="kpi-dot ${k.dot}"></span>` : ''}
+              <span>${esc(k.sub || '')}</span>
+            </div>
+          </div>
+        `).join('')}
       </div>
-      <div>
-        ${page === 'orders' ? '<button class="btn" onclick="newOrderModal()">＋ Thêm đơn hàng</button>' : ''}
-        ${page === 'shipping' ? '<button class="btn" onclick="openCreateShipmentModal()">＋ Tạo phiếu gửi hàng</button>' : ''}
-        ${page === 'returns' ? '<button class="btn danger" onclick="scan(\'\',\'return\')">＋ Tiếp nhận kiện hoàn</button>' : ''}
-        ${page === 'products' ? '<button class="btn" onclick="newProductModal()">＋ Thêm sản phẩm</button>' : ''}
-        ${page === 'stores' ? '<button class="btn" onclick="openConnectStoreModal()">＋ Kết nối kênh mới</button>' : ''}
-        ${page === 'reconciliation' ? '<button class="btn" onclick="exportReconciliationReport()">📥 Xuất bảng đối soát</button>' : ''}
-        ${page === 'invoices' ? '<button class="btn" onclick="openBulkInvoiceIssueModal()">⚡ Phát hành HĐ hàng loạt</button>' : ''}
+    ` : '';
+
+    const mockChipHtml = isMock ? `
+      <span class="chip-mock" tabindex="0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        <span>Dữ liệu mô phỏng</span>
+        <div class="popover-content">
+          <b>Chức năng đang phát triển:</b><br>
+          ${esc(mockDesc || 'Dữ liệu được mô phỏng cho mục đích kiểm thử luồng nghiệp vụ.')}
+        </div>
+      </span>
+    ` : '';
+
+    return `
+      <div class="page-hero reveal">
+        <div class="hero-top">
+          <div>
+            <div class="hero-breadcrumb">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              <span>${esc(breadcrumb)}</span>
+            </div>
+            <div class="hero-title-row">
+              <h1>${esc(title)}</h1>
+              ${mockChipHtml}
+            </div>
+            <p class="hero-sub">${esc(subtitle)}</p>
+          </div>
+          ${primaryAction ? `<div class="hero-actions">${primaryAction}</div>` : ''}
+        </div>
+        ${kpiHtml}
       </div>
-    </div>
-  `;
+    `;
+  };
+
+  let h = '';
 
   if (page === 'home') {
     renderHome(h);
@@ -242,6 +302,11 @@ async function render() {
   } else if (page === 'settings') {
     renderSettings(h);
   }
+
+  // Kích hoạt lại ScrollEngine sau mỗi lần render
+  if (window.FixItScrollEngine) {
+    window.FixItScrollEngine.refresh();
+  }
 }
 
 // 1. TRANG TỔNG QUAN (HOME)
@@ -256,81 +321,71 @@ function renderHome(header) {
     (o) => (o.status === 'Đang kiểm tra hàng hoàn' || o.status === 'Đang hoàn về' || o.status === 'Chờ người bán duyệt khiếu nại')
   );
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Bán hàng & Vận hành / Tổng quan',
+    title: 'Tổng quan vận hành & Hàng hoàn',
+    subtitle: 'Hệ thống gom bằng chứng tự động, đối soát AI và theo dõi tiền bồi hoàn sàn TMĐT.',
+    primaryAction: `<button class="btn" onclick="go('returns')">＋ Tiếp nhận kiện hoàn</button>`,
+    kpis: [
+      { label: 'Tổng đơn hàng', value: totalOrders, sub: 'Đa kênh Shopee & TikTok', dot: 'blue', isCountUp: true },
+      { label: 'Hàng hoàn cần kiểm tra', value: returnCount, sub: 'Cần bóc kiện trước 48h', dot: 'amber', isCountUp: true },
+      { label: 'Hồ sơ đang khiếu nại', value: activeClaims, sub: 'Đang đòi bồi thường sàn', dot: 'red', isCountUp: true },
+      { label: 'Tiền đã thu hồi', value: formatMoney(totalRecovered), sub: 'Đã hoàn vào ví người bán', dot: 'green', isCountUp: true },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
-    
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tổng đơn hàng</div>
-        <div class="number">${totalOrders}</div>
-        <small class="sub">Đa kênh Shopee & TikTok</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Hàng hoàn cần kiểm tra</div>
-        <div class="number amber">${returnCount}</div>
-        <small class="sub">Cần bóc kiện trước 48h</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Hồ sơ đang khiếu nại</div>
-        <div class="number danger">${activeClaims}</div>
-        <small class="sub">Đang đòi bồi thường sàn</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tiền đã thu hồi</div>
-        <div class="number" style="color:#107c41">${formatMoney(totalRecovered)}</div>
-        <small class="sub">Đã hoàn vào ví người bán</small>
-      </div>
-    </div>
+    ${heroHtml}
 
     ${urgentReturns.length
       ? `
-      <div class="panel" style="border-left: 4px solid var(--danger);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <h2 style="color:var(--danger);margin:0">⚠️ Cảnh báo hạn chót khiếu nại (SLA 48h của sàn)</h2>
-          <small class="sub">Quá 48h sàn sẽ tự động duyệt hoàn tiền cho khách</small>
+      <div class="panel reveal" style="border-left: 4px solid var(--status-error);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div>
+            <h2 style="color:var(--status-error);margin:0;display:flex;align-items:center;gap:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Cảnh báo hạn chót khiếu nại (SLA 48h của sàn)</span>
+            </h2>
+            <small class="sub">Quá 48h sàn sẽ tự động duyệt hoàn tiền cho khách</small>
+          </div>
         </div>
-        <div style="overflow-x:auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã đơn / Vận đơn hoàn</th>
-                <th>Sản phẩm</th>
-                <th>Lý do hoàn</th>
-                <th>Thời hạn còn lại</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${urgentReturns
-        .map(
-          (o) => `
-                <tr>
-                  <td><b>${esc(o.code)}</b><br><small class="sub">${esc(o.returnTrackingCode || o.trackingCode || 'Chưa có mã VĐ')}</small></td>
-                  <td>${esc(o.product)}</td>
-                  <td><span class="tag tag-danger" style="display:inline-flex;align-items:center;padding:4px 10px">${esc(o.returnReason || 'Kiểm tra mở kiện')}</span></td>
-                  <td><span class="sla-badge">⏳ Còn 18 giờ</span></td>
-                  <td style="text-align:right">
-                    ${o.status === 'Chờ người bán duyệt khiếu nại'
-              ? `<button class="btn-action-main warning" style="width:165px" onclick="comparison('${esc(o.code)}')">Duyệt đối chiếu AI</button>`
-              : `<button class="btn-action-main danger" style="width:165px" onclick="scan('${esc(o.code)}','return')">Mở kiện & Quay video</button>`
-            }
-                  </td>
-                </tr>
-              `
-        )
-        .join('')}
-            </tbody>
-          </table>
+        <div class="emergency-card-list">
+          ${urgentReturns.map((o) => `
+            <div class="emergency-card">
+              <div class="emergency-main">
+                <div class="emergency-title">
+                  <b>${esc(o.code)}</b> · ${esc(o.product)}
+                </div>
+                <div class="emergency-sub">
+                  Vận đơn: <span class="tabular-nums">${esc(o.returnTrackingCode || o.trackingCode || 'Chưa có')}</span>
+                  · Lý do: <span class="tag-status tag-danger" style="min-width:auto;padding:2px 8px;font-size:11px">${esc(o.returnReason || 'Kiểm tra mở kiện')}</span>
+                </div>
+              </div>
+              <div class="emergency-timer-wrap">
+                <div class="emergency-timer-label">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span>Còn 18 giờ (37%)</span>
+                </div>
+                <div class="emergency-progress-bg">
+                  <div class="emergency-progress-bar"></div>
+                </div>
+              </div>
+              <div>
+                ${o.status === 'Chờ người bán duyệt khiếu nại'
+                  ? `<button class="btn-soft" style="border-color:rgba(201,138,11,0.3);color:var(--status-warning)" onclick="comparison('${esc(o.code)}')">Duyệt đối chiếu AI</button>`
+                  : `<button class="btn-soft" style="border-color:rgba(200,68,58,0.3);color:var(--status-error)" onclick="scan('${esc(o.code)}','return')">Mở kiện & Quay video</button>`
+                }
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
-    `
-      : ''
-    }
+    ` : ''}
 
-    <div class="panel">
+    <div class="panel reveal">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <h2 style="margin:0">Đơn hàng gần đây</h2>
-        <button class="btn-xs secondary" onclick="go('orders')">Xem tất cả đơn →</button>
+        <button class="btn-soft" onclick="go('orders')">Xem tất cả đơn →</button>
       </div>
       <fixit-order-table>${window.FixItOrderTable.template(orders.slice(0, 7), esc)}</fixit-order-table>
     </div>
@@ -353,33 +408,43 @@ function renderOrders(header) {
       ? orders
       : orders.filter((o) => (orderFilter === 'Đang kiểm tra hàng hoàn' ? o.status.includes('hoàn') || o.status.includes('kiểm tra') : o.status === orderFilter));
 
-  app.innerHTML = `
-    ${header}
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Bán hàng & Vận hành / Đơn hàng đa kênh',
+    title: 'Quản lý đơn hàng đa kênh',
+    subtitle: 'Đồng bộ đơn hàng từ TikTok Shop, Shopee và Web về một luồng xử lý tập trung.',
+    primaryAction: `<button class="btn" onclick="newOrderModal()">＋ Thêm đơn hàng</button>`,
+  });
 
-    <div class="panel" style="padding:14px 18px;margin-bottom:14px">
-      <div class="formrow">
-        <input id="orderSearch" placeholder="Tìm kiếm theo mã đơn (FX-1025), mã vận đơn (SPX-VN...), tên khách hàng..." value="${esc(searchQuery)}" onkeydown="if(event.key==='Enter') searchOrders()">
-        <button class="btn secondary" onclick="searchOrders()">🔍 Tìm kiếm</button>
-        ${searchQuery ? `<button class="btn secondary" onclick="clearSearch()">Xóa lọc</button>` : ''}
+  app.innerHTML = `
+    ${heroHtml}
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+      <div class="segmented-control">
+        ${filters
+          .map(
+            ([val, label]) => `
+          <button type="button" class="segmented-item ${orderFilter === val ? 'active' : ''}" onclick="setOrderFilter('${val}')">
+            <span>${label}</span>
+            <span class="segmented-count">
+              ${val === 'all' ? orders.length : orders.filter((o) => (val === 'Đang kiểm tra hàng hoàn' ? o.status.includes('hoàn') || o.status.includes('kiểm tra') : o.status === val)).length}
+            </span>
+          </button>
+        `
+          )
+          .join('')}
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="position:relative">
+          <input id="orderSearch" placeholder="Tìm mã đơn, vận đơn, khách hàng..." value="${esc(searchQuery)}" onkeydown="if(event.key==='Enter') searchOrders()" style="padding-left:34px;height:36px;font-size:12.5px;width:260px;border-radius:10px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:11px;top:10px;color:var(--ink-muted-aa)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
+        <button class="btn-soft" onclick="searchOrders()">Tìm kiếm</button>
+        ${searchQuery ? `<button class="btn-soft" onclick="clearSearch()">Xóa lọc</button>` : ''}
       </div>
     </div>
 
-    <div class="steps">
-      ${filters
-      .map(
-        ([val, label]) => `
-        <button type="button" class="step ${orderFilter === val ? 'on' : ''}" onclick="setOrderFilter('${val}')">
-          ${label}
-          <span class="filter-count">
-            ${val === 'all' ? orders.length : orders.filter((o) => (val === 'Đang kiểm tra hàng hoàn' ? o.status.includes('hoàn') || o.status.includes('kiểm tra') : o.status === val)).length}
-          </span>
-        </button>
-      `
-      )
-      .join('')}
-    </div>
-
-    <div class="panel">
+    <div class="panel reveal">
       <fixit-order-table>${window.FixItOrderTable.template(filtered, esc)}</fixit-order-table>
     </div>
   `;
@@ -553,7 +618,7 @@ function renderShipping(header) {
     ['jnt', 'J&T Express'],
     ['ghtk', 'GHTK'],
     ['viettel', 'Viettel Post'],
-    ['delayed', '⚠️ Cảnh báo giao trễ'],
+    ['delayed', 'Cảnh báo giao trễ'],
   ];
 
   const filtered = list.filter((item) => {
@@ -566,43 +631,31 @@ function renderShipping(header) {
     return true;
   });
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Bán hàng & Vận hành / Giao hàng',
+    title: 'Điều phối & Xử lý giao hàng',
+    subtitle: 'Theo dõi tiến độ vận chuyển đa hãng (SPX, J&T, GHTK, Viettel Post) và xử lý cảnh báo giao trễ.',
+    isMock: true,
+    mockDesc: 'Quản lý điều phối đơn vị vận chuyển (SPX Express, J&T, GHTK, Viettel Post), theo dõi lộ trình thời gian thực và cảnh báo rủi ro giao hàng trễ / thất lạc.',
+    primaryAction: `<button class="btn" onclick="openCreateShipmentModal()">＋ Tạo phiếu gửi hàng</button>`,
+    kpis: [
+      { label: 'Chờ bưu tá lấy', value: 18, sub: 'Tạo vận đơn, chờ lấy hàng', dot: 'blue', isCountUp: true },
+      { label: 'Đang trung chuyển', value: 42, sub: 'Luân chuyển giữa các Hub SOC', dot: 'amber', isCountUp: true },
+      { label: 'Đang giao hàng', value: 29, sub: 'Bưu tá đang trên đường phát', dot: 'green', isCountUp: true },
+      { label: 'Cảnh báo giao trễ', value: 5, sub: 'Khách hẹn lại > 2 lần', dot: 'red', isCountUp: true },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Quản lý điều phối đơn vị vận chuyển (SPX Express, J&T, GHTK, Viettel Post), theo dõi lộ trình thời gian thực và cảnh báo rủi ro giao hàng trễ / thất lạc.
-    </div>
-
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Đang chờ bưu tá lấy</div>
-        <div class="number">18</div>
-        <small class="sub">Tạo vận đơn, chờ lấy hàng</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Đang trung chuyển</div>
-        <div class="number amber">42</div>
-        <small class="sub">Luân chuyển giữa các Hub SOC</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Đang giao hàng</div>
-        <div class="number" style="color:var(--green)">29</div>
-        <small class="sub">Bưu tá đang trên đường phát</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Cảnh báo giao trễ / Chờ hoàn</div>
-        <div class="number danger">5</div>
-        <small class="sub">Khách hẹn lại > 2 lần hoặc quá SLA</small>
-      </div>
-    </div>
-
-    <div class="steps">
+    <div class="segmented-control reveal" style="margin-bottom:16px">
       ${filters
         .map(
           ([val, label]) => `
-        <button type="button" class="step ${shippingFilter === val ? 'on' : ''}" onclick="setShippingFilter('${val}')">
-          ${label}
-          <span class="filter-count">
+        <button type="button" class="segmented-item ${shippingFilter === val ? 'active' : ''}" onclick="setShippingFilter('${val}')">
+          <span>${label}</span>
+          <span class="segmented-count">
             ${
               val === 'all'
                 ? list.length
@@ -617,17 +670,17 @@ function renderShipping(header) {
         .join('')}
     </div>
 
-    <div class="panel">
-      <div style="overflow-x:auto">
+    <div class="panel reveal">
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
               <th>Mã vận đơn / Đơn hàng</th>
               <th>Kênh & Khách hàng</th>
               <th>Tuyến hành trình</th>
-              <th style="width:145px;text-align:center">Trạng thái vận chuyển</th>
+              <th style="width:155px;text-align:center">Trạng thái vận chuyển</th>
               <th>Shipper phụ trách</th>
-              <th style="width:190px;text-align:right">Hành động</th>
+              <th style="width:170px;text-align:right">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -636,33 +689,40 @@ function renderShipping(header) {
                 (s) => `
               <tr>
                 <td>
-                  <b style="color:var(--ink)">${esc(s.trackingCode)}</b>
+                  <b class="tabular-nums" style="color:var(--ink-900)">${esc(s.trackingCode)}</b>
                   <br>
-                  <small class="sub">Đơn: <b>${esc(s.orderCode)}</b></small>
+                  <small class="sub">Đơn: <b class="tabular-nums">${esc(s.orderCode)}</b></small>
                   <span class="carrier-pill ${s.carrierClass}" style="margin-left:4px">${esc(s.carrier)}</span>
                 </td>
                 <td>
                   <b>${esc(s.customerName)}</b> · <small class="sub">${esc(s.customerPhone)}</small>
                   <br>
-                  <span class="channel-pill channel-${s.channel.toLowerCase().includes('shopee') ? 'shopee' : s.channel.toLowerCase().includes('tiktok') ? 'tiktok' : s.channel.toLowerCase().includes('kiotviet') ? 'pos' : 'web'}">
-                    ${esc(s.channel)}
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot ${s.channel.toLowerCase().includes('shopee') ? 'channel-dot-shopee' : s.channel.toLowerCase().includes('tiktok') ? 'channel-dot-tiktok' : s.channel.toLowerCase().includes('kiotviet') ? 'channel-dot-pos' : 'channel-dot-web'}"></span>
+                    <span>${esc(s.channel)}</span>
                   </span>
                 </td>
                 <td>
-                  <div style="font-size:12px;color:var(--muted)">Từ: ${esc(s.senderHub)}</div>
-                  <div style="font-size:12.5px;font-weight:600">Đến: ${esc(s.destination)}</div>
+                  <div style="font-size:12px;color:var(--ink-muted-aa);display:flex;align-items:center;gap:4px">
+                    <span>${esc(s.senderHub)}</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                  </div>
+                  <div style="font-size:13px;font-weight:600;color:var(--ink-900)">${esc(s.destination)}</div>
                 </td>
                 <td style="text-align:center">
                   <span class="tag-status ${s.statusClass}">${esc(s.status)}</span>
-                  <br><small class="sub" style="font-size:11px;color:${s.isDelayed ? '#cf3737' : 'inherit'}">${esc(s.note)}</small>
+                  ${s.note ? `<br><small class="sub" style="font-size:11px;color:${s.isDelayed ? 'var(--status-error)' : 'inherit'}">${esc(s.note)}</small>` : ''}
                 </td>
                 <td>
-                  <b>${esc(s.shipper)}</b>
-                  <br><small class="sub">📞 ${esc(s.shipperPhone)} · ${esc(s.updatedAt)}</small>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="width:24px;height:24px;border-radius:50%;background:var(--navy-800);color:var(--cream-50);display:grid;place-items:center;font-size:11px;font-weight:600">${esc(s.shipper.charAt(0))}</span>
+                    <b>${esc(s.shipper)}</b>
+                  </div>
+                  <small class="sub" style="margin-left:30px">${esc(s.shipperPhone)} · ${esc(s.updatedAt)}</small>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn-action-main primary" onclick="viewTrackingModal('${esc(s.trackingCode)}')">Lộ trình</button>
-                  <button class="btn-action-sub secondary" onclick="nudgeShipper('${esc(s.trackingCode)}')">Giục phát</button>
+                  <button class="btn-soft" onclick="viewTrackingModal('${esc(s.trackingCode)}')">Lộ trình</button>
+                  ${s.isDelayed ? `<button class="btn-soft" style="margin-left:4px;color:var(--status-warning)" title="Giục bưu tá phát ưu tiên" onclick="nudgeShipper('${esc(s.trackingCode)}')">Giục phát</button>` : ''}
                 </td>
               </tr>
             `
@@ -677,54 +737,81 @@ function renderShipping(header) {
 
 // 3. TRANG SẢN PHẨM (PRODUCTS)
 function renderProducts(header) {
-  app.innerHTML = `
-    ${header}
-    <div class="notice info">
-      💡 <b>Phân tích rủi ro sản phẩm:</b> Hệ thống tự động đo lường tỷ lệ hoàn trả của từng SKU để giúp shop phát hiện các mặt hàng có nguy cơ bị gian lận, tráo đổi hoặc dễ hư hỏng khi vận chuyển.
-    </div>
+  const pList = products.length ? products : getMockProducts();
+  const totalStock = pList.reduce((s, p) => s + (p.stock || 0), 0);
+  const totalReserved = pList.reduce((s, p) => s + (p.reserved || 0), 0);
+  const highRiskCount = pList.filter((p) => p.riskLevel === 'Cao' || (p.returnRate || 0) > 10).length;
 
-    <div class="panel">
-      <div style="overflow-x:auto">
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Bán hàng & Vận hành / Sản phẩm',
+    title: 'Danh mục sản phẩm & Rủi ro hoàn hàng',
+    subtitle: 'Theo dõi tồn kho, giá trị niêm yết và đo lường rủi ro hàng hoàn theo từng SKU.',
+    kpis: [
+      { label: 'Tổng SKU hoạt động', value: pList.length, sub: 'Danh mục đa kênh', dot: 'blue', isCountUp: true },
+      { label: 'Tồn kho khả dụng', value: totalStock, sub: 'Sẵn sàng giao khách', dot: 'green', isCountUp: true },
+      { label: 'Đang đóng gói', value: totalReserved, sub: 'Đã giữ chỗ cho đơn mới', dot: 'amber', isCountUp: true },
+      { label: 'SKU cảnh báo rủi ro', value: highRiskCount, sub: 'Tỷ lệ hoàn hàng > 10%', dot: 'red', isCountUp: true },
+    ],
+  });
+
+  app.innerHTML = `
+    ${heroHtml}
+
+    <div class="panel reveal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0 0 4px">Danh sách sản phẩm & Tỷ lệ hoàn trả</h2>
+          <small class="sub">Hệ thống tự động đo lường tỷ lệ hoàn trả của từng SKU để phát hiện các mặt hàng có nguy cơ bị gian lận hoặc tráo đổi</small>
+        </div>
+      </div>
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
       <table>
         <thead>
           <tr>
             <th>Mã SKU / Tên sản phẩm</th>
             <th>Danh mục</th>
             <th>Giá niêm yết</th>
-            <th>Tồn kho khả dụng</th>
-            <th style="width:125px;text-align:center">Đang đóng gói</th>
-            <th>Tỷ lệ hoàn hàng</th>
-            <th style="width:115px;text-align:center">Mức độ rủi ro</th>
+            <th>Tồn khả dụng</th>
+            <th style="width:125px;text-align:center">Đang giữ chỗ</th>
+            <th style="width:170px">Tỷ lệ hoàn hàng</th>
+            <th style="width:125px;text-align:center">Mức độ rủi ro</th>
           </tr>
         </thead>
         <tbody>
-          ${(products.length ? products : getMockProducts())
-      .map(
-        (p) => `
+          ${pList
+            .map(
+              (p) => `
             <tr>
               <td>
-                <b>${esc(p.name)}</b>
-                <br><small class="sub">SKU: <b>${esc(p.sku)}</b></small>
+                <b style="color:var(--ink-900)">${esc(p.name)}</b>
+                <br><small class="sub">SKU: <b class="tabular-nums">${esc(p.sku)}</b></small>
               </td>
               <td><span class="tag">${esc(p.category || 'Thời trang')}</span></td>
-              <td><b>${formatMoney(p.price)}</b></td>
-              <td><b>${p.stock}</b> cái</td>
-              <td style="text-align:center"><span class="tag-fixed tag-warn">${p.reserved || 0} đang giữ</span></td>
+              <td><b class="tabular-nums">${formatMoney(p.price)}</b></td>
+              <td><b class="tabular-nums">${p.stock}</b> cái</td>
+              <td style="text-align:center"><span class="tag-fixed tag-warn tabular-nums">${p.reserved || 0} đang giữ</span></td>
               <td>
-                <b style="color:${p.returnRate > 10 ? '#cf3737' : p.returnRate > 5 ? '#d97706' : '#107c41'}">
-                  ${p.returnRate || 0}%
-                </b>
-                <small class="sub">(${p.totalReturns || 0}/${p.totalOrders || 0} đơn)</small>
+                <div class="mini-progress-cell">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                    <b class="tabular-nums" style="color:${p.returnRate > 10 ? 'var(--status-error)' : p.returnRate > 5 ? 'var(--status-warning)' : 'var(--status-success)'}">
+                      ${p.returnRate || 0}%
+                    </b>
+                    <small class="sub tabular-nums" style="font-size:11px">(${p.totalReturns || 0}/${p.totalOrders || 0})</small>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div class="mini-bar-fill ${p.returnRate > 10 ? 'danger' : p.returnRate > 5 ? 'amber' : 'green'}" style="--target-width:${Math.min(100, Math.round((p.returnRate || 0) * 5))}%"></div>
+                  </div>
+                </div>
               </td>
               <td style="text-align:center">
-                <span class="tag-risk ${p.riskLevel === 'Cao' ? 'tag-danger' : p.riskLevel === 'Trung bình' ? 'tag-warn' : 'tag-success'}">
+                <span class="tag-status ${p.riskLevel === 'Cao' ? 'tag-danger' : p.riskLevel === 'Trung bình' ? 'tag-warn' : 'tag-success'}">
                   ${esc(p.riskLevel || 'Thấp')}
                 </span>
               </td>
             </tr>
           `
-      )
-      .join('')}
+            )
+            .join('')}
         </tbody>
       </table>
       </div>
@@ -888,52 +975,41 @@ function renderInventory(header) {
   const ledgerList = getMockStockLedgerData();
   const mappingList = getMockSkuMappingData();
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Kho & Nhập xuất / Tồn kho',
+    title: 'Kho hàng & Biến động nhập xuất tồn',
+    subtitle: 'Theo dõi thẻ kho thời gian thực và quản lý ánh xạ SKU đồng bộ đa nền tảng.',
+    isMock: true,
+    mockDesc: 'Theo dõi biến động thẻ kho nhập-xuất-tồn và liên kết mã SKU đa kênh (Mapping) đồng bộ giữa Shopee, TikTok Shop, Website và Kho tổng FixIt.',
+    kpis: [
+      { label: 'Tổng tồn kho thực tế', value: summary.totalStock, sub: 'Khả dụng trong kho', dot: 'blue', isCountUp: true },
+      { label: 'Đang đóng gói / Chờ giao', value: summary.totalReserved, sub: 'Đã giữ chỗ cho đơn mới', dot: 'amber', isCountUp: true },
+      { label: 'Hàng hoàn nhập lại kho', value: summary.totalRestockedCount, sub: 'Kiểm tra nguyên vẹn', dot: 'green', isCountUp: true },
+      { label: 'Hàng lỗi / Đang khiếu nại', value: summary.totalDisputedCount, sub: 'Giữ làm vật chứng đối soát', dot: 'red', isCountUp: true },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Theo dõi biến động thẻ kho nhập-xuất-tồn và liên kết mã SKU đa kênh (Mapping) đồng bộ giữa Shopee, TikTok Shop, Website và Kho tổng FixIt.
-    </div>
-
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tổng tồn kho thực tế</div>
-        <div class="number">${summary.totalStock}</div>
-        <small class="sub">Số lượng khả dụng trong kho</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Đang đóng gói / Chờ giao</div>
-        <div class="number amber">${summary.totalReserved}</div>
-        <small class="sub">Đã giữ chỗ cho đơn mới</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Hàng hoàn đã nhập lại kho</div>
-        <div class="number" style="color:#107c41">${summary.totalRestockedCount}</div>
-        <small class="sub">Kiểm tra nguyên vẹn, không lỗi</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Hàng lỗi / Đang khiếu nại</div>
-        <div class="number danger">${summary.totalDisputedCount}</div>
-        <small class="sub">Giữ làm vật chứng đối soát</small>
-      </div>
-    </div>
-
-    <div class="steps" style="margin-bottom:14px">
-      <button type="button" class="step ${inventorySubTab === 'sku' ? 'on' : ''}" onclick="setInventorySubTab('sku')">
-        📦 Cân đối tồn kho SKU
+    <div class="segmented-control reveal" style="margin-bottom:16px">
+      <button type="button" class="segmented-item ${inventorySubTab === 'sku' ? 'active' : ''}" onclick="setInventorySubTab('sku')">
+        <span>Cân đối tồn kho SKU</span>
       </button>
-      <button type="button" class="step ${inventorySubTab === 'ledger' ? 'on' : ''}" onclick="setInventorySubTab('ledger')">
-        📋 Lịch sử Nhập - Xuất - Tồn <span class="tag-dev">Mới</span>
+      <button type="button" class="segmented-item ${inventorySubTab === 'ledger' ? 'active' : ''}" onclick="setInventorySubTab('ledger')">
+        <span>Lịch sử Nhập - Xuất - Tồn</span>
+        <span class="segmented-count">Mới</span>
       </button>
-      <button type="button" class="step ${inventorySubTab === 'mapping' ? 'on' : ''}" onclick="setInventorySubTab('mapping')">
-        🔗 Liên kết SKU đa kênh (Mapping) <span class="tag-dev">Mới</span>
+      <button type="button" class="segmented-item ${inventorySubTab === 'mapping' ? 'active' : ''}" onclick="setInventorySubTab('mapping')">
+        <span>Liên kết SKU đa kênh</span>
+        <span class="segmented-count">Mới</span>
       </button>
     </div>
 
     ${inventorySubTab === 'sku' ? `
-      <div class="panel">
-        <h2>Cân đối kho hàng theo SKU</h2>
-        <div style="overflow-x:auto">
+      <div class="panel reveal">
+        <h2 style="margin:0 0 16px">Cân đối kho hàng theo SKU</h2>
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
@@ -941,7 +1017,7 @@ function renderInventory(header) {
               <th>Tên sản phẩm</th>
               <th>Tồn sẵn sàng</th>
               <th style="width:125px;text-align:center">Đang giữ chỗ</th>
-              <th style="width:135px;text-align:center">Trạng thái tồn kho</th>
+              <th style="width:145px;text-align:center">Trạng thái tồn kho</th>
             </tr>
           </thead>
           <tbody>
@@ -949,12 +1025,12 @@ function renderInventory(header) {
               .map(
                 (p) => `
               <tr>
-                <td><b>${esc(p.sku)}</b></td>
+                <td><b class="tabular-nums" style="color:var(--ink-900)">${esc(p.sku)}</b></td>
                 <td>${esc(p.name)}</td>
-                <td><b style="color:var(--green)">${p.stock}</b></td>
-                <td style="text-align:center"><span class="tag-fixed tag-warn">${p.reserved || 0}</span></td>
+                <td><b class="tabular-nums" style="color:var(--status-success)">${p.stock}</b> cái</td>
+                <td style="text-align:center"><span class="tag-fixed tag-warn tabular-nums">${p.reserved || 0}</span></td>
                 <td style="text-align:center">
-                  <span class="tag-fixed ${p.stock < 40 ? 'tag-danger' : 'tag-success'}">
+                  <span class="tag-status ${p.stock < 40 ? 'tag-danger' : 'tag-success'}">
                     ${p.stock < 40 ? 'Sắp hết hàng' : 'Đủ hàng bán'}
                   </span>
                 </td>
@@ -967,16 +1043,16 @@ function renderInventory(header) {
         </div>
       </div>
     ` : inventorySubTab === 'ledger' ? `
-      <div class="panel">
-        <h2>Lịch sử biến động thẻ kho (Nhập - Xuất - Tồn)</h2>
-        <div style="overflow-x:auto">
+      <div class="panel reveal">
+        <h2 style="margin:0 0 16px">Lịch sử biến động thẻ kho (Nhập - Xuất - Tồn)</h2>
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
               <th>Thời gian</th>
               <th>Mã SKU & Sản phẩm</th>
               <th style="width:170px;text-align:center">Loại giao dịch</th>
-              <th style="width:100px;text-align:center">Biến động</th>
+              <th style="width:105px;text-align:center">Biến động</th>
               <th>Tồn sau GD</th>
               <th>Chứng từ / Mã đơn</th>
               <th>Người thực hiện</th>
@@ -987,21 +1063,21 @@ function renderInventory(header) {
               .map(
                 (item) => `
               <tr>
-                <td><small class="sub">${esc(item.time)}</small></td>
+                <td><small class="sub tabular-nums">${esc(item.time)}</small></td>
                 <td>
-                  <b>${esc(item.productName)}</b>
-                  <br><small class="sub">SKU: <b>${esc(item.sku)}</b></small>
+                  <b style="color:var(--ink-900)">${esc(item.productName)}</b>
+                  <br><small class="sub">SKU: <b class="tabular-nums">${esc(item.sku)}</b></small>
                 </td>
                 <td style="text-align:center">
                   <span class="tag-status ${item.typeClass}">${esc(item.type)}</span>
                 </td>
                 <td style="text-align:center">
-                  <b style="font-size:14px;color:${item.qty > 0 ? '#107c41' : '#cf3737'}">
+                  <b class="tabular-nums" style="font-size:14px;color:${item.qty > 0 ? 'var(--status-success)' : 'var(--status-error)'}">
                     ${item.qty > 0 ? '+' + item.qty : item.qty}
                   </b>
                 </td>
-                <td><b>${item.stockAfter}</b> cái</td>
-                <td><b>${esc(item.docCode)}</b></td>
+                <td><b class="tabular-nums">${item.stockAfter}</b> cái</td>
+                <td><b class="tabular-nums">${esc(item.docCode)}</b></td>
                 <td><small class="sub">${esc(item.actor)}</small></td>
               </tr>
             `
@@ -1012,9 +1088,9 @@ function renderInventory(header) {
         </div>
       </div>
     ` : `
-      <div class="panel">
-        <h2>Ánh xạ & Liên kết mã SKU giữa các kênh bán</h2>
-        <div style="overflow-x:auto">
+      <div class="panel reveal">
+        <h2 style="margin:0 0 16px">Ánh xạ & Liên kết mã SKU giữa các kênh bán</h2>
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
@@ -1032,16 +1108,31 @@ function renderInventory(header) {
               .map(
                 (m) => `
               <tr>
-                <td><b style="color:var(--ink)">${esc(m.internalSku)}</b></td>
+                <td><b class="tabular-nums" style="color:var(--ink-900)">${esc(m.internalSku)}</b></td>
                 <td>${esc(m.name)}</td>
-                <td><span class="channel-pill channel-shopee">${esc(m.shopeeSku)}</span></td>
-                <td><span class="channel-pill channel-tiktok">${esc(m.tiktokSku)}</span></td>
-                <td><span class="channel-pill channel-web">${esc(m.webSku)}</span></td>
+                <td>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-shopee"></span>
+                    <span class="tabular-nums">${esc(m.shopeeSku)}</span>
+                  </span>
+                </td>
+                <td>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-tiktok"></span>
+                    <span class="tabular-nums">${esc(m.tiktokSku)}</span>
+                  </span>
+                </td>
+                <td>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-web"></span>
+                    <span class="tabular-nums">${esc(m.webSku)}</span>
+                  </span>
+                </td>
                 <td style="text-align:center">
                   <span class="tag-status ${m.syncClass}">${esc(m.syncStatus)}</span>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn-xs secondary" onclick="alert('Đã cập nhật liên kết ánh xạ cho SKU ${esc(m.internalSku)}')">Sửa mapping</button>
+                  <button class="btn-soft" onclick="alert('Đã cập nhật liên kết ánh xạ cho SKU ${esc(m.internalSku)}')">Sửa</button>
                 </td>
               </tr>
             `
@@ -1066,45 +1157,67 @@ function renderStores(header) {
     { code: 'SHOP-POS-Q1', name: 'FixIt Flagship Store Q.1 TP.HCM', platform: 'KiotViet POS', shopType: 'Cửa hàng Offline', status: 'Đang kết nối', activeOrders: 38, returnRate: 0.5, totalRevenue: 51200000, rating: 4.9 },
   ];
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Bán hàng & Vận hành / Gian hàng',
+    title: 'Gian hàng & Kênh bán tập trung',
+    subtitle: 'Gom hoạt động từ cửa hàng vật lý (POS), website độc lập và các sàn TMĐT về một hệ thống quản lý.',
+    isMock: true,
+    mockDesc: 'Gom hoạt động từ cửa hàng vật lý (POS), website độc lập và các sàn TMĐT về một hệ thống quản lý tập trung.',
+    primaryAction: `<button class="btn" onclick="openConnectChannelModal()">＋ Thêm kênh bán mới</button>`,
+    kpis: [
+      { label: 'Kênh đang kết nối', value: '6 kênh', sub: 'Shopee, TikTok, Web, POS', dot: 'green' },
+      { label: 'Doanh số tháng', value: '796.500.000đ', sub: 'Hợp nhất toàn hệ thống', dot: 'blue' },
+      { label: 'Đơn đang xử lý', value: 748, sub: 'Đang đóng gói & giao', dot: 'amber', isCountUp: true },
+      { label: 'Tỷ lệ hoàn trung bình', value: '3.7%', sub: 'Nằm trong ngưỡng an toàn', dot: 'green' },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Gom hoạt động từ cửa hàng vật lý (POS), website độc lập và các sàn TMĐT về một hệ thống quản lý tập trung.
-    </div>
-
-    <div class="card-grid">
+    <div class="card-grid reveal">
       ${storeList
       .map(
         (s) => {
           const isShopee = s.platform.toLowerCase().includes('shopee');
           const isTiktok = s.platform.toLowerCase().includes('tiktok');
           const isPos = s.platform.toLowerCase().includes('kiotviet') || s.platform.toLowerCase().includes('pos');
-          const channelClass = isShopee ? 'shopee' : isTiktok ? 'tiktok' : isPos ? 'pos' : 'web';
+          const channelDot = isShopee ? 'channel-dot-shopee' : isTiktok ? 'channel-dot-tiktok' : isPos ? 'channel-dot-pos' : 'channel-dot-web';
           return `
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <span class="channel-pill channel-${channelClass}">${esc(s.platform)}</span>
-                <div class="card-title" style="margin-top:6px">${esc(s.name)}</div>
-                <div class="card-sub">${esc(s.shopType)} · Đánh giá ⭐ ${s.rating}</div>
+          <div class="card" style="display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="card-header">
+                <div>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot ${channelDot}"></span>
+                    <span>${esc(s.platform)}</span>
+                  </span>
+                  <div class="card-title" style="margin-top:8px;font-size:15px">${esc(s.name)}</div>
+                  <div class="card-sub" style="display:flex;align-items:center;gap:4px;margin-top:3px">
+                    <span>${esc(s.shopType)}</span> · 
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <span class="tabular-nums font-semibold">${s.rating}</span>
+                  </div>
+                </div>
+                <span class="tag-status tag-success">${esc(s.status)}</span>
               </div>
-              <span class="tag tag-success">${esc(s.status)}</span>
+              <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+                <div class="card-stat">
+                  <span class="sub">Doanh số tháng:</span>
+                  <b class="tabular-nums" style="color:var(--ink-900)">${formatMoney(s.totalRevenue)}</b>
+                </div>
+                <div class="card-stat">
+                  <span class="sub">Đơn hàng đang xử lý:</span>
+                  <b class="tabular-nums">${s.activeOrders} đơn</b>
+                </div>
+                <div class="card-stat">
+                  <span class="sub">Tỷ lệ hoàn hàng:</span>
+                  <b class="tabular-nums" style="color:${s.returnRate > 5 ? 'var(--status-error)' : 'var(--status-success)'}">${s.returnRate}%</b>
+                </div>
+              </div>
             </div>
-            <div class="card-stat">
-              <span class="sub">Doanh số tháng:</span>
-              <b>${formatMoney(s.totalRevenue)}</b>
-            </div>
-            <div class="card-stat">
-              <span class="sub">Đơn hàng đang xử lý:</span>
-              <b>${s.activeOrders} đơn</b>
-            </div>
-            <div class="card-stat">
-              <span class="sub">Tỷ lệ hoàn hàng:</span>
-              <b style="color:${s.returnRate > 5 ? '#cf3737' : '#107c41'}">${s.returnRate}%</b>
-            </div>
-            <div class="end" style="margin-top:12px">
-              <button class="btn-xs secondary" onclick="alert('Đã đồng bộ trạng thái đơn hàng và tồn kho mới nhất từ kênh ${esc(s.name)}')">Đồng bộ API</button>
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--sand-200);display:flex;justify-content:flex-end">
+              <button class="btn-soft" onclick="alert('Đã đồng bộ trạng thái đơn hàng và tồn kho mới nhất từ kênh ${esc(s.name)}')">Đồng bộ API</button>
             </div>
           </div>
         `;
@@ -1119,20 +1232,46 @@ function renderStores(header) {
 function renderReturns(header) {
   const returnOrders = orders.filter((o) => o.returnReason || o.status.includes('hoàn') || o.status.includes('kiểm tra'));
 
-  app.innerHTML = `
-    ${header}
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Hàng hoàn & Khiếu nại / Tiếp nhận',
+    title: 'Tiếp nhận & Mở kiện hàng hoàn',
+    subtitle: 'Quét mã vận đơn trả về, quay video mở kiện 6 mặt và tự động đối chiếu AI phát hiện tráo hàng.',
+    primaryAction: `<button class="btn" onclick="scanReturnQuick()">＋ Mở kiện ngay</button>`,
+    kpis: [
+      { label: 'Kiện chờ kiểm tra', value: returnOrders.length, sub: 'Cần bóc trước 48h SLA', dot: 'amber', isCountUp: true },
+      { label: 'Hàng hoàn trong ngày', value: 8, sub: 'Bưu tá đã bàn giao kho', dot: 'blue', isCountUp: true },
+      { label: 'Phát hiện sai lệch', value: 3, sub: 'Chờ lập hồ sơ khiếu nại', dot: 'red', isCountUp: true },
+      { label: 'Đã hoàn kho', value: 18, sub: 'Sản phẩm nguyên vẹn', dot: 'green', isCountUp: true },
+    ],
+  });
 
-    <div class="panel">
-      <h2>Quét mã nhận kiện hàng hoàn</h2>
-      <p class="sub">Nhập mã đơn hàng hoặc quét mã vận đơn trên nhãn kiện hàng hoàn (SPX-RT..., JNT-RT...).</p>
+  app.innerHTML = `
+    ${heroHtml}
+
+    <div class="panel reveal" style="background:var(--surface-card);border:1px solid var(--sand-200);box-shadow:var(--shadow-sm);margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--navy-900);color:var(--orange-500);display:grid;place-items:center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+        </div>
+        <div>
+          <h2 style="margin:0 0 2px;font-size:16px">Quét mã nhận kiện hàng hoàn</h2>
+          <p class="sub" style="margin:0">Nhập mã đơn hàng hoặc quét mã vận đơn trên nhãn kiện hàng hoàn (SPX-RT..., JNT-RT...)</p>
+        </div>
+      </div>
       <div class="formrow">
-        <input id="returnInput" placeholder="VD: FX-1029 hoặc SPX-RT-23194" onkeydown="if(event.key==='Enter') scanReturnQuick()">
-        <button class="btn danger" onclick="scanReturnQuick()">Tiếp nhận & Mở kiện</button>
+        <input id="returnInput" placeholder="VD: FX-1029 hoặc SPX-RT-23194" onkeydown="if(event.key==='Enter') scanReturnQuick()" style="height:44px;font-size:14px">
+        <button class="btn" onclick="scanReturnQuick()" style="height:44px;padding:0 22px">Tiếp nhận & Mở kiện</button>
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Danh sách kiện hoàn đang kiểm tra / chờ đối soát (${returnOrders.length})</h2>
+    <div class="panel reveal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0 0 4px">Danh sách kiện hoàn đang kiểm tra / chờ đối soát</h2>
+          <small class="sub">Quản lý toàn bộ kiện hoàn từ các kênh Shopee, TikTok Shop đang lưu tại kho</small>
+        </div>
+        <span class="count-pill tabular-nums" style="font-size:12px;padding:4px 10px">${returnOrders.length} kiện</span>
+      </div>
       <fixit-order-table>${window.FixItOrderTable.template(returnOrders, esc)}</fixit-order-table>
     </div>
   `;
@@ -1148,20 +1287,50 @@ function scanReturnQuick() {
 function renderEvidence(header) {
   const ordersWithEvidence = orders.filter((o) => o.evidence && o.evidence.length > 0);
 
-  app.innerHTML = `
-    ${header}
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Hàng hoàn & Khiếu nại / Video bằng chứng',
+    title: 'Thư viện video đóng gói & Mở kiện',
+    subtitle: 'Lưu trữ và tra cứu bằng chứng video độ phân giải cao phục vụ đối soát và khiếu nại sàn TMĐT.',
+    primaryAction: `<button class="btn" onclick="openUploadVideoModal()">＋ Tải video lên</button>`,
+    kpis: [
+      { label: 'Tổng video đóng hàng', value: ordersWithEvidence.length, sub: 'Có chứng từ xác thực', dot: 'green', isCountUp: true },
+      { label: 'Video mở kiện hoàn', value: 4, sub: 'Bóc kiện đối chứng 6 mặt', dot: 'blue', isCountUp: true },
+      { label: 'Dung lượng lưu trữ', value: '2.4 GB', sub: 'Cloud Storage an toàn', dot: 'blue' },
+      { label: 'Tỷ lệ bảo vệ thành công', value: '100%', sub: 'Không bị sàn bác bỏ', dot: 'green' },
+    ],
+  });
 
-    <div class="panel">
-      <h2>Tra cứu video đóng gói theo mã</h2>
+  app.innerHTML = `
+    ${heroHtml}
+
+    <div class="panel reveal" style="background:var(--surface-card);border:1px solid var(--sand-200);box-shadow:var(--shadow-sm);margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--navy-900);color:var(--orange-500);display:grid;place-items:center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
+        <div>
+          <h2 style="margin:0 0 2px;font-size:16px">Tra cứu video đóng gói theo mã</h2>
+          <p class="sub" style="margin:0">Tìm nhanh video bằng chứng đóng gói hàng theo mã đơn hoặc mã vận đơn gửi đi</p>
+        </div>
+      </div>
       <div class="formrow">
-        <input id="findcode" placeholder="Nhập mã đơn hàng (FX-1026) hoặc mã vận đơn (JNT-TK-901142)..." onkeydown="if(event.key==='Enter') findEvidence()">
-        <button class="btn" onclick="findEvidence()">🔍 Tìm video</button>
+        <input id="findcode" placeholder="Nhập mã đơn hàng (FX-1026) hoặc mã vận đơn (JNT-TK-901142)..." onkeydown="if(event.key==='Enter') findEvidence()" style="height:44px;font-size:14px">
+        <button class="btn" onclick="findEvidence()" style="height:44px;padding:0 22px;display:flex;align-items:center;gap:6px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span>Tìm video</span>
+        </button>
       </div>
       <div id="result" style="margin-top:16px"></div>
     </div>
 
-    <div class="panel">
-      <h2>Danh sách đơn đã có video bằng chứng (${ordersWithEvidence.length})</h2>
+    <div class="panel reveal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0 0 4px">Danh sách đơn đã có video bằng chứng</h2>
+          <small class="sub">Tất cả video được gán nhãn thời gian và mã vận đơn tự động</small>
+        </div>
+        <span class="count-pill tabular-nums" style="font-size:12px;padding:4px 10px">${ordersWithEvidence.length} đơn</span>
+      </div>
       <fixit-order-table>${window.FixItOrderTable.template(ordersWithEvidence, esc)}</fixit-order-table>
     </div>
   `;
@@ -1173,47 +1342,43 @@ function renderClaims(header) {
   const totalApproved = claims.reduce((s, c) => s + (c.approvedAmount || 0), 0);
   const totalReceived = claims.reduce((s, c) => s + (c.receivedAmount || 0), 0);
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Hàng hoàn & Khiếu nại / Hồ sơ khiếu nại',
+    title: 'Hồ sơ tranh chấp & Khiếu nại sàn',
+    subtitle: 'Tự động tạo văn bản pháp lý, đính kèm bằng chứng 6 mặt và gửi Open API đòi bồi thường sàn TMĐT.',
+    primaryAction: `<button class="btn" onclick="go('returns')">＋ Tạo hồ sơ khiếu nại</button>`,
+    kpis: [
+      { label: 'Tiền yêu cầu bồi hoàn', value: formatMoney(totalAmount), sub: 'Tổng giá trị đang tranh chấp', dot: 'amber', isCountUp: true },
+      { label: 'Tiền sàn đã duyệt', value: formatMoney(totalApproved), sub: 'Shopee & TikTok phê duyệt', dot: 'blue', isCountUp: true },
+      { label: 'Tiền đã nhận về ví', value: formatMoney(totalReceived), sub: 'Đã cộng vào số dư tài khoản', dot: 'green', isCountUp: true },
+      { label: 'Tổng hồ sơ khiếu nại', value: claims.length, sub: 'Được bảo vệ bằng chứng', dot: 'blue', isCountUp: true },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tiền yêu cầu bồi hoàn</div>
-        <div class="number amber">${formatMoney(totalAmount)}</div>
-        <small class="sub">Tổng giá trị đang tranh chấp</small>
+    <div class="panel reveal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0 0 4px">Danh sách hồ sơ tranh chấp hàng hoàn</h2>
+          <small class="sub">Toàn bộ hồ sơ khiếu nại đòi bồi hoàn với bằng chứng video mở kiện và văn bản chuẩn sàn</small>
+        </div>
+        <span class="count-pill tabular-nums" style="font-size:12px;padding:4px 10px">${claims.length} vụ việc</span>
       </div>
-      <div class="metric">
-        <div class="metric-title">Tiền sàn đã duyệt</div>
-        <div class="number" style="color:#0369a1">${formatMoney(totalApproved)}</div>
-        <small class="sub">Shopee & TikTok phê duyệt</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tiền đã thực nhận về ví</div>
-        <div class="number" style="color:#107c41">${formatMoney(totalReceived)}</div>
-        <small class="sub">Đã cộng vào số dư tài khoản</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tổng hồ sơ khiếu nại</div>
-        <div class="number">${claims.length}</div>
-        <small class="sub">Được bảo vệ bằng chứng</small>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>Danh sách hồ sơ tranh chấp hàng hoàn</h2>
       ${claims.length
       ? `
-        <div style="overflow-x:auto">
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
               <th>Mã đơn / Vận đơn</th>
-              <th style="width:115px;text-align:center">Sàn</th>
+              <th style="width:125px;text-align:center">Kênh</th>
               <th>Lý do khiếu nại</th>
-              <th style="width:130px;text-align:center">Cấp độ bằng chứng</th>
+              <th style="width:130px;text-align:center">Cấp độ chứng cứ</th>
               <th>Số tiền yêu cầu</th>
               <th style="width:145px;text-align:center">Trạng thái hồ sơ</th>
-              <th style="width:190px;text-align:right">Hành động</th>
+              <th style="width:160px;text-align:right">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -1222,31 +1387,36 @@ function renderClaims(header) {
           (c) => `
               <tr>
                 <td>
-                  <b>${esc(c.orderCode)}</b>
-                  <br><small class="sub">${esc(c.trackingCode || 'N/A')}</small>
+                  <b class="tabular-nums" style="color:var(--ink-900)">${esc(c.orderCode)}</b>
+                  <br><small class="sub tabular-nums">${esc(c.trackingCode || 'N/A')}</small>
                 </td>
                 <td style="text-align:center">
-                  <span class="channel-pill channel-${(c.channel || '').toLowerCase().includes('shopee') ? 'shopee' : 'tiktok'}">
-                    ${esc(c.channel || 'Shopee')}
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-${(c.channel || '').toLowerCase().includes('shopee') ? 'shopee' : 'tiktok'}"></span>
+                    <span>${esc(c.channel || 'Shopee')}</span>
                   </span>
                 </td>
                 <td>
-                  <b>${esc(c.reason)}</b>
-                  <br><small class="sub">${esc(c.description || '').slice(0, 70)}...</small>
+                  <b style="color:var(--ink-900)">${esc(c.reason)}</b>
+                  <br><small class="sub" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.description || '')}</small>
                 </td>
                 <td style="text-align:center">
-                  <span class="tag-fixed ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : c.evidenceStrength === 'Mạnh' ? 'tag-info' : 'tag-warn'}">
-                    ⭐ ${esc(c.evidenceStrength || 'Mạnh')}
+                  <span class="tag-status ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : c.evidenceStrength === 'Mạnh' ? 'tag-info' : 'tag-warn'}" style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <span>${esc(c.evidenceStrength || 'Mạnh')}</span>
                   </span>
                 </td>
-                <td><b>${formatMoney(c.claimAmount)}</b></td>
+                <td><b class="tabular-nums" style="color:var(--ink-900)">${formatMoney(c.claimAmount)}</b></td>
                 <td style="text-align:center">
                   <span class="tag-status ${c.status === 'Đã bồi hoàn' ? 'tag-success' : c.status === 'Bị từ chối' ? 'tag-danger' : 'tag-warn'}">
                     ${esc(c.status)}
                   </span>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn-action-main primary" style="width:175px" onclick="viewClaimDetailModal('${c._id}')">Xem & Copy đơn gửi sàn</button>
+                  <button class="btn-soft" onclick="viewClaimDetailModal('${c._id}')">Xem hồ sơ</button>
+                  <button class="btn-icon-soft" title="Sao chép văn bản & tải bằng chứng" onclick="copyClaimTextAndDownloadEvidence('${c._id}')" style="margin-left:4px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
                 </td>
               </tr>
             `
@@ -1284,68 +1454,61 @@ function renderSimulator(header) {
     filtered = allClaims.filter((c) => c.status === 'Bị từ chối');
   }
 
-  app.innerHTML = `
-    ${header}
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Hàng hoàn & Khiếu nại / Sàn giả lập',
+    title: 'Cổng Trọng tài Tranh chấp Sàn TMĐT',
+    subtitle: 'Mô phỏng bộ phận Trọng tài Khiếu nại Shopee / TikTok Shop xem xét bằng chứng và ra phán quyết giải ngân.',
+    primaryAction: `<button class="btn" onclick="viewWalletModal()">Xem Ví Người Bán</button>`,
+    kpis: [
+      { label: 'Hồ sơ sàn tiếp nhận', value: stats.totalSubmitted, sub: 'Gửi qua Open API', dot: 'blue', isCountUp: true },
+      { label: 'Chờ trọng tài duyệt', value: stats.pendingReview, sub: 'Cần phán quyết đối chiếu', dot: 'amber', isCountUp: true },
+      { label: 'Tỷ lệ duyệt bồi hoàn', value: stats.approvalRate + '%', sub: 'Video FixIt bảo vệ', dot: 'green' },
+      { label: 'Đã đền bù vào ví', value: formatMoney(stats.totalCompensated), sub: 'Đã giải ngân về ví shop', dot: 'green', isCountUp: true },
+    ],
+  });
 
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tổng hồ sơ sàn tiếp nhận</div>
-        <div class="number">${stats.totalSubmitted}</div>
-        <small class="sub">Hồ sơ từ shop gửi qua Open API</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Chờ trọng tài sàn duyệt</div>
-        <div class="number ${stats.pendingReview > 0 ? 'amber' : ''}">${stats.pendingReview}</div>
-        <small class="sub">Cần phán quyết đối chiếu video</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tỷ lệ duyệt bồi hoàn</div>
-        <div class="number" style="color:#0284c7">${stats.approvalRate}%</div>
-        <small class="sub">Bằng chứng video FixIt bảo vệ</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tổng tiền đã đền bù vào ví</div>
-        <div class="number" style="color:#059669">${formatMoney(stats.totalCompensated)}</div>
-        <small class="sub">Đã giải ngân về số dư ví người bán</small>
-      </div>
+  app.innerHTML = `
+    ${heroHtml}
+
+    <div class="segmented-control reveal" style="margin-bottom:16px">
+      <button type="button" class="segmented-item ${simulatorFilter === 'all' ? 'active' : ''}" onclick="setSimulatorFilter('all')">
+        <span>Tất cả</span>
+        <span class="segmented-count">${stats.totalSubmitted}</span>
+      </button>
+      <button type="button" class="segmented-item ${simulatorFilter === 'pending' ? 'active' : ''}" onclick="setSimulatorFilter('pending')">
+        <span>Chờ sàn duyệt</span>
+        <span class="segmented-count" style="background:var(--status-error-bg);color:var(--status-error)">${stats.pendingReview}</span>
+      </button>
+      <button type="button" class="segmented-item ${simulatorFilter === 'approved' ? 'active' : ''}" onclick="setSimulatorFilter('approved')">
+        <span>Đã chấp thuận</span>
+        <span class="segmented-count" style="background:var(--status-success-bg);color:var(--status-success)">${stats.approvedCount}</span>
+      </button>
+      <button type="button" class="segmented-item ${simulatorFilter === 'rejected' ? 'active' : ''}" onclick="setSimulatorFilter('rejected')">
+        <span>Đã từ chối</span>
+        <span class="segmented-count">${stats.rejectedCount}</span>
+      </button>
     </div>
 
-    <div class="panel">
+    <div class="panel reveal">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
         <div>
-          <h2 style="margin:0 0 4px">⚖️ Cổng Trọng tài Giải quyết Tranh chấp Sàn TMĐT (Dispute Arbitrator)</h2>
-          <small class="sub">Mô phỏng bộ phận Trọng tài Khiếu nại Shopee / TikTok Shop xem xét bằng chứng và ra phán quyết</small>
+          <h2 style="margin:0 0 4px">Hồ sơ tranh chấp đang thụ lý</h2>
+          <small class="sub">Thẩm định bằng chứng video đóng gói & mở kiện từ người bán để ra phán quyết bồi thường</small>
         </div>
-        <button class="btn secondary" onclick="viewWalletModal()">💳 Xem Ví Người Bán</button>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto">
-        <button class="step ${simulatorFilter === 'all' ? 'on' : ''}" onclick="setSimulatorFilter('all')">
-          Tất cả <span class="filter-count">${stats.totalSubmitted}</span>
-        </button>
-        <button class="step ${simulatorFilter === 'pending' ? 'on' : ''}" onclick="setSimulatorFilter('pending')">
-          ⏳ Chờ sàn duyệt <span class="filter-count" style="background:#fee2e2;color:#b91c1c">${stats.pendingReview}</span>
-        </button>
-        <button class="step ${simulatorFilter === 'approved' ? 'on' : ''}" onclick="setSimulatorFilter('approved')">
-          ✅ Đã chấp thuận <span class="filter-count" style="background:#dcfce7;color:#15803d">${stats.approvedCount}</span>
-        </button>
-        <button class="step ${simulatorFilter === 'rejected' ? 'on' : ''}" onclick="setSimulatorFilter('rejected')">
-          ❌ Đã từ chối <span class="filter-count">${stats.rejectedCount}</span>
-        </button>
       </div>
 
       ${filtered.length ? `
-        <div style="overflow-x:auto">
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
           <table>
             <thead>
               <tr>
                 <th>Mã tranh chấp / Ngày gửi</th>
                 <th>Mã đơn / Kênh</th>
                 <th>Lý do & Khác biệt AI</th>
-                <th style="width:125px;text-align:center">Cấp độ chứng cứ</th>
+                <th style="width:130px;text-align:center">Cấp độ chứng cứ</th>
                 <th>Số tiền yêu cầu</th>
                 <th style="width:145px;text-align:center">Trạng thái sàn</th>
-                <th style="width:180px;text-align:right">Phán quyết</th>
+                <th style="width:160px;text-align:right">Phán quyết</th>
               </tr>
             </thead>
             <tbody>
@@ -1356,36 +1519,37 @@ function renderSimulator(header) {
                 return `
                   <tr>
                     <td>
-                      <b style="color:var(--ink)">${esc(c.apiDisputeId || `DISPUTE-#${c._id.slice(-6).toUpperCase()}`)}</b>
-                      <br><small class="sub">${formatDate(c.submittedAt || c.createdAt)}</small>
+                      <b class="tabular-nums" style="color:var(--ink-900)">${esc(c.apiDisputeId || `DISPUTE-#${c._id.slice(-6).toUpperCase()}`)}</b>
+                      <br><small class="sub tabular-nums">${formatDate(c.submittedAt || c.createdAt)}</small>
                     </td>
                     <td>
-                      <b>#${esc(c.orderCode)}</b>
+                      <b class="tabular-nums">#${esc(c.orderCode)}</b>
                       <br>
-                      <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}" style="margin-top:2px">
-                        ${esc(c.channel || 'Shopee')}
+                      <span class="channel-pill-neutral">
+                        <span class="channel-dot channel-dot-${isShopee ? 'shopee' : 'tiktok'}"></span>
+                        <span>${esc(c.channel || 'Shopee')}</span>
                       </span>
                     </td>
                     <td>
-                      <b>${esc(c.reason)}</b>
-                      <br><small class="sub">${esc(c.description || '').slice(0, 75)}${(c.description || '').length > 75 ? '...' : ''}</small>
+                      <b style="color:var(--ink-900)">${esc(c.reason)}</b>
+                      <br><small class="sub" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.description || '')}</small>
                     </td>
                     <td style="text-align:center">
-                      <span class="tag-fixed ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : 'tag-info'}">
-                        ⭐ ${esc(c.evidenceStrength || 'Mạnh')}
+                      <span class="tag-status ${c.evidenceStrength === 'Mạnh nhất' ? 'tag-success' : 'tag-info'}" style="display:inline-flex;align-items:center;gap:4px">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        <span>${esc(c.evidenceStrength || 'Mạnh')}</span>
                       </span>
                     </td>
-                    <td><b>${formatMoney(c.claimAmount)}</b></td>
+                    <td><b class="tabular-nums" style="color:var(--ink-900)">${formatMoney(c.claimAmount)}</b></td>
                     <td style="text-align:center">
                       <span class="tag-status ${isApproved ? 'tag-success' : isPending ? 'tag-warn' : 'tag-danger'}">
                         ${isApproved ? 'Đã bồi hoàn' : isPending ? 'Chờ sàn duyệt' : 'Bị từ chối'}
                       </span>
                     </td>
                     <td style="text-align:right">
-                      ${isPending
-                        ? `<button class="btn-action-main danger" style="width:160px" onclick="openDisputeJudgeModal('${c._id}')">⚖️ Trọng tài phán quyết</button>`
-                        : `<button class="btn-action-main secondary" style="width:160px" onclick="openDisputeJudgeModal('${c._id}')">👁️ Xem phán quyết</button>`
-                      }
+                      <button class="btn-soft" onclick="openDisputeJudgeModal('${c._id}')">
+                        ${isPending ? 'Phán quyết' : 'Xem kết quả'}
+                      </button>
                     </td>
                   </tr>
                 `;
@@ -1558,7 +1722,7 @@ function renderReconciliation(header) {
     ['all', 'Tất cả đơn đối soát'],
     ['shopee', 'Shopee'],
     ['tiktok', 'TikTok Shop'],
-    ['disputed', '⚠️ Lệch cước nghi vấn'],
+    ['disputed', 'Lệch cước nghi vấn'],
   ];
 
   const filteredItems = data.items.filter((item) => {
@@ -1569,51 +1733,39 @@ function renderReconciliation(header) {
     return true;
   });
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Tài chính & Thuế / Đối soát sàn',
+    title: 'Đối soát tiền sàn & Khấu trừ chi phí',
+    subtitle: 'Đối chiếu đơn hàng thành công, khấu trừ chiết khấu sàn, kiểm tra lệch cước và đối soát tiền về tài khoản ngân hàng.',
+    isMock: true,
+    mockDesc: 'Tự động đối chiếu đơn hàng thành công, khấu trừ chiết khấu sàn (Phí cố định, Phí thanh toán, Voucher, Freeship Xtra), kiểm tra lệch cước vận chuyển và đối soát tiền thực nhận về tài khoản ngân hàng.',
+    primaryAction: `<button class="btn" onclick="exportReconciliationExcel()">Xuất file Excel</button>`,
+    kpis: [
+      { label: 'Tổng GMV đã bán', value: formatMoney(data.metrics.totalGMV), sub: 'Doanh số gộp đơn hoàn tất', dot: 'blue', isCountUp: true },
+      { label: 'Phí sàn khấu trừ', value: formatMoney(data.metrics.totalFees), sub: `Chiết khấu sàn ~${data.metrics.feePercentage}%`, dot: 'amber', isCountUp: true },
+      { label: 'Thực nhận về ngân hàng', value: formatMoney(data.metrics.totalNet), sub: 'Đã quyết toán vào tài khoản', dot: 'green', isCountUp: true },
+      { label: 'Lệch cước nghi vấn', value: data.metrics.disputedCount + ' đơn', sub: `Chênh lệch ${formatMoney(data.metrics.disputedAmount)}`, dot: 'red', isCountUp: true },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Tự động đối chiếu đơn hàng thành công, khấu trừ chiết khấu sàn (Phí cố định, Phí thanh toán, Voucher, Freeship Xtra), kiểm tra lệch cước vận chuyển và đối soát tiền thực nhận về tài khoản ngân hàng.
-    </div>
-
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tổng GMV đã bán</div>
-        <div class="number">${formatMoney(data.metrics.totalGMV)}</div>
-        <small class="sub">Doanh số gộp đơn hoàn tất</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Phí sàn khấu trừ</div>
-        <div class="number amber">${formatMoney(data.metrics.totalFees)}</div>
-        <small class="sub">Chiết khấu sàn ~${data.metrics.feePercentage}%</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Thực nhận về ngân hàng</div>
-        <div class="number" style="color:#107c41">${formatMoney(data.metrics.totalNet)}</div>
-        <small class="sub">Đã quyết toán vào tài khoản</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Lệch cước nghi vấn</div>
-        <div class="number danger">${data.metrics.disputedCount} đơn</div>
-        <small class="sub">Chênh lệch ${formatMoney(data.metrics.disputedAmount)}</small>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <h2>Các kỳ quyết toán & Chuyển khoản ngân hàng gần đây</h2>
-      <div style="overflow-x:auto">
+    <div class="panel reveal" style="margin-bottom:16px">
+      <h2 style="margin:0 0 16px">Các kỳ quyết toán & Chuyển khoản ngân hàng gần đây</h2>
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
       <table>
         <thead>
           <tr>
             <th>Kỳ đối soát</th>
-            <th style="width:115px;text-align:center">Sàn</th>
+            <th style="width:125px;text-align:center">Kênh</th>
             <th>Số đơn</th>
             <th>Doanh thu gộp</th>
             <th>Phí sàn trừ</th>
             <th>Tiền thực nhận</th>
             <th>Tài khoản nhận</th>
             <th style="width:130px;text-align:center">Trạng thái</th>
-            <th style="width:120px;text-align:right">Hành động</th>
+            <th style="width:110px;text-align:right">Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -1623,18 +1775,21 @@ function renderReconciliation(header) {
               <tr>
                 <td><b>${esc(p.name)}</b></td>
                 <td style="text-align:center">
-                  <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}">${esc(p.platform)}</span>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-${isShopee ? 'shopee' : 'tiktok'}"></span>
+                    <span>${esc(p.platform)}</span>
+                  </span>
                 </td>
-                <td><b>${p.orderCount}</b> đơn</td>
-                <td><b>${formatMoney(p.gmv)}</b></td>
-                <td style="color:#cf3737">-${formatMoney(p.fees)}</td>
-                <td style="color:#107c41"><b>${formatMoney(p.netPayout)}</b></td>
+                <td><b class="tabular-nums">${p.orderCount}</b> đơn</td>
+                <td><b class="tabular-nums">${formatMoney(p.gmv)}</b></td>
+                <td class="tabular-nums" style="color:var(--status-error)">-${formatMoney(p.fees)}</td>
+                <td class="tabular-nums" style="color:var(--status-success)"><b>${formatMoney(p.netPayout)}</b></td>
                 <td><small class="sub">${esc(p.bankAccount)}<br>${esc(p.payoutDate)}</small></td>
                 <td style="text-align:center">
                   <span class="tag-status ${p.statusClass}">${esc(p.status)}</span>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn-xs secondary" onclick="alert('Xem bảng sao kê chi tiết kỳ ${esc(p.id)}')">Chi tiết</button>
+                  <button class="btn-soft" onclick="alert('Xem bảng sao kê chi tiết kỳ ${esc(p.id)}')">Chi tiết</button>
                 </td>
               </tr>
             `;
@@ -1644,11 +1799,11 @@ function renderReconciliation(header) {
       </div>
     </div>
 
-    <div class="steps">
+    <div class="segmented-control reveal" style="margin-bottom:16px">
       ${filters.map(([val, label]) => `
-        <button type="button" class="step ${reconciliationFilter === val ? 'on' : ''}" onclick="setReconciliationFilter('${val}')">
-          ${label}
-          <span class="filter-count">
+        <button type="button" class="segmented-item ${reconciliationFilter === val ? 'active' : ''}" onclick="setReconciliationFilter('${val}')">
+          <span>${label}</span>
+          <span class="segmented-count">
             ${
               val === 'all'
                 ? data.items.length
@@ -1661,19 +1816,19 @@ function renderReconciliation(header) {
       `).join('')}
     </div>
 
-    <div class="panel">
-      <h2>Chi tiết đối soát đơn hàng & Khấu trừ chi phí</h2>
-      <div style="overflow-x:auto">
+    <div class="panel reveal">
+      <h2 style="margin:0 0 16px">Chi tiết đối soát đơn hàng & Khấu trừ chi phí</h2>
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
       <table>
         <thead>
           <tr>
             <th>Mã đơn / Vận đơn</th>
-            <th style="width:115px;text-align:center">Kênh</th>
+            <th style="width:125px;text-align:center">Kênh</th>
             <th>Doanh thu gộp</th>
             <th>Phí sàn trừ</th>
             <th>Thực nhận (Net)</th>
-            <th style="width:170px;text-align:center">Đối soát cước</th>
-            <th style="width:190px;text-align:right">Hành động</th>
+            <th style="width:180px;text-align:center">Đối soát cước</th>
+            <th style="width:170px;text-align:right">Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -1683,30 +1838,31 @@ function renderReconciliation(header) {
             return `
               <tr>
                 <td>
-                  <b style="color:var(--ink)">#${esc(item.orderCode)}</b>
-                  <br><small class="sub">${esc(item.trackingCode)}</small>
+                  <b class="tabular-nums" style="color:var(--ink-900)">#${esc(item.orderCode)}</b>
+                  <br><small class="sub tabular-nums">${esc(item.trackingCode)}</small>
                 </td>
                 <td style="text-align:center">
-                  <span class="channel-pill channel-${isShopee ? 'shopee' : 'tiktok'}">${esc(item.channel)}</span>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot channel-dot-${isShopee ? 'shopee' : 'tiktok'}"></span>
+                    <span>${esc(item.channel)}</span>
+                  </span>
                 </td>
-                <td><b>${formatMoney(item.gmv)}</b></td>
+                <td><b class="tabular-nums">${formatMoney(item.gmv)}</b></td>
                 <td>
-                  <span style="color:#cf3737">-${formatMoney(totalFee)}</span>
+                  <span class="tabular-nums" style="color:var(--status-error)">-${formatMoney(totalFee)}</span>
                   <br><small class="sub" style="font-size:11px">${esc(item.feeBreakdown).slice(0, 40)}...</small>
                 </td>
-                <td style="color:${item.netPayout >= 0 ? '#107c41' : '#cf3737'}">
+                <td class="tabular-nums" style="color:${item.netPayout >= 0 ? 'var(--status-success)' : 'var(--status-error)'}">
                   <b>${formatMoney(item.netPayout)}</b>
                 </td>
                 <td style="text-align:center">
                   <span class="tag-status ${item.matchClass}">${esc(item.matchStatus)}</span>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn-action-main primary" onclick="viewReconciliationDetailModal('${esc(item.orderCode)}')">Chi tiết phí</button>
+                  <button class="btn-soft" onclick="viewReconciliationDetailModal('${esc(item.orderCode)}')">Chi tiết</button>
                   ${item.hasAnomaly ? `
-                    <button class="btn-action-sub danger" onclick="claimShippingDiscrepancy('${esc(item.orderCode)}')">Khiếu nại</button>
-                  ` : `
-                    <button class="btn-action-sub secondary" onclick="viewReconciliationDetailModal('${esc(item.orderCode)}')">Xem</button>
-                  `}
+                    <button class="btn-soft" style="margin-left:4px;color:var(--status-error)" onclick="claimShippingDiscrepancy('${esc(item.orderCode)}')">Khiếu nại</button>
+                  ` : ''}
                 </td>
               </tr>
             `;
@@ -1841,41 +1997,29 @@ function renderInvoices(header) {
     return true;
   });
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Tài chính & Thuế / Hóa đơn điện tử',
+    title: 'Hóa đơn Giá trị Gia tăng điện tử (VAT)',
+    subtitle: 'Kết nối MISA meInvoice / VNPT-Invoice, tự động xuất hóa đơn VAT theo Nghị định 123/2020/NĐ-CP và kê khai thuế.',
+    isMock: true,
+    mockDesc: 'Kết nối hệ thống Hóa đơn điện tử (MISA meInvoice / VNPT-Invoice), tự động xuất hóa đơn VAT theo Nghị định 123/2020/NĐ-CP và đồng bộ dữ liệu kê khai thuế TMĐT.',
+    primaryAction: `<button class="btn" onclick="bulkIssueInvoices()">Phát hành hàng loạt</button>`,
+    kpis: [
+      { label: 'Tổng HĐ đã phát hành', value: 486, sub: 'Có mã Cơ quan Thuế', dot: 'green', isCountUp: true },
+      { label: 'Doanh thu tính thuế GTGT', value: formatMoney(164200000), sub: 'Doanh số chịu thuế kỳ này', dot: 'blue', isCountUp: true },
+      { label: 'Tiền thuế GTGT ước tính', value: formatMoney(13136000), sub: 'Thuế suất 8% & 10%', dot: 'amber', isCountUp: true },
+      { label: 'Chờ xuất hóa đơn', value: '14 đơn', sub: 'Cần phát hành trong 24h', dot: 'red' },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Kết nối hệ thống Hóa đơn điện tử (MISA meInvoice / VNPT-Invoice), tự động xuất hóa đơn VAT theo Nghị định 123/2020/NĐ-CP và đồng bộ dữ liệu kê khai thuế TMĐT.
-    </div>
-
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tổng HĐ đã phát hành</div>
-        <div class="number">486</div>
-        <small class="sub">Hóa đơn điện tử có mã CQT</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Doanh thu tính thuế GTGT</div>
-        <div class="number">${formatMoney(164200000)}</div>
-        <small class="sub">Doanh số chịu thuế kỳ này</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tiền thuế GTGT ước tính</div>
-        <div class="number amber">${formatMoney(13136000)}</div>
-        <small class="sub">Thuế suất 8% & 10%</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Chờ xuất hóa đơn</div>
-        <div class="number danger">14 đơn</div>
-        <small class="sub">Cần phát hành trong 24h</small>
-      </div>
-    </div>
-
-    <div class="steps">
+    <div class="segmented-control reveal" style="margin-bottom:16px">
       ${filters.map(([val, label]) => `
-        <button type="button" class="step ${invoiceFilter === val ? 'on' : ''}" onclick="setInvoiceFilter('${val}')">
-          ${label}
-          <span class="filter-count">
+        <button type="button" class="segmented-item ${invoiceFilter === val ? 'active' : ''}" onclick="setInvoiceFilter('${val}')">
+          <span>${label}</span>
+          <span class="segmented-count">
             ${
               val === 'all'
                 ? invoices.length
@@ -1890,9 +2034,14 @@ function renderInvoices(header) {
       `).join('')}
     </div>
 
-    <div class="panel">
-      <h2>Danh sách Hóa đơn Giá trị Gia tăng điện tử (VAT)</h2>
-      <div style="overflow-x:auto">
+    <div class="panel reveal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0 0 4px">Danh sách Hóa đơn Giá trị Gia tăng điện tử (VAT)</h2>
+          <small class="sub">Quản lý hóa đơn đã phát hành và kết nối ký số truyền nhận dữ liệu với Cơ quan Thuế</small>
+        </div>
+      </div>
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
       <table>
         <thead>
           <tr>
@@ -1903,7 +2052,7 @@ function renderInvoices(header) {
             <th>Tiền thuế (8%)</th>
             <th style="width:145px;text-align:center">Trạng thái HĐ</th>
             <th>Mã CQT cấp</th>
-            <th style="width:190px;text-align:right">Hành động</th>
+            <th style="width:160px;text-align:right">Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -1911,31 +2060,34 @@ function renderInvoices(header) {
             const isShopee = inv.channel.toLowerCase().includes('shopee');
             const isTiktok = inv.channel.toLowerCase().includes('tiktok');
             const isPos = inv.channel.toLowerCase().includes('kiotviet') || inv.channel.toLowerCase().includes('pos');
-            const channelClass = isShopee ? 'shopee' : isTiktok ? 'tiktok' : isPos ? 'pos' : 'web';
+            const channelDot = isShopee ? 'channel-dot-shopee' : isTiktok ? 'channel-dot-tiktok' : isPos ? 'channel-dot-pos' : 'channel-dot-web';
             return `
               <tr>
                 <td>
-                  <b style="color:var(--ink)">${esc(inv.series)} - ${esc(inv.number)}</b>
-                  <br><small class="sub">${esc(inv.issueDate)}</small>
+                  <b class="tabular-nums" style="color:var(--ink-900)">${esc(inv.series)} - ${esc(inv.number)}</b>
+                  <br><small class="sub tabular-nums">${esc(inv.issueDate)}</small>
                 </td>
                 <td>
-                  <b>#${esc(inv.orderCode)}</b>
+                  <b class="tabular-nums">#${esc(inv.orderCode)}</b>
                   <br>
-                  <span class="channel-pill channel-${channelClass}">${esc(inv.channel)}</span>
+                  <span class="channel-pill-neutral">
+                    <span class="channel-dot ${channelDot}"></span>
+                    <span>${esc(inv.channel)}</span>
+                  </span>
                 </td>
                 <td>
                   <b>${esc(inv.customerName)}</b>
-                  <br><small class="sub">MST: <b>${esc(inv.taxCode)}</b></small>
+                  <br><small class="sub">MST: <b class="tabular-nums">${esc(inv.taxCode)}</b></small>
                 </td>
-                <td><b>${formatMoney(inv.total)}</b></td>
-                <td style="color:#107c41"><b>${formatMoney(inv.vatAmount)}</b></td>
+                <td><b class="tabular-nums">${formatMoney(inv.total)}</b></td>
+                <td class="tabular-nums" style="color:var(--status-success)"><b>${formatMoney(inv.vatAmount)}</b></td>
                 <td style="text-align:center">
                   <span class="tag-status ${inv.statusClass}">${esc(inv.status)}</span>
                 </td>
-                <td><small class="sub">${esc(inv.cqtCode)}</small></td>
+                <td><small class="sub tabular-nums">${esc(inv.cqtCode)}</small></td>
                 <td style="text-align:right">
-                  <button class="btn-action-main primary" onclick="viewInvoiceModal('${esc(inv.id)}')">👁️ Xem HĐ</button>
-                  <button class="btn-action-sub secondary" onclick="downloadInvoiceXml('${esc(inv.id)}')">XML</button>
+                  <button class="btn-soft" onclick="viewInvoiceModal('${esc(inv.id)}')">Xem HĐ</button>
+                  <button class="btn-soft" style="margin-left:4px" onclick="downloadInvoiceXml('${esc(inv.id)}')">XML</button>
                 </td>
               </tr>
             `;
@@ -1963,39 +2115,26 @@ function renderReports(header) {
     ],
   };
 
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Tài chính & Thuế / Báo cáo',
+    title: 'Báo cáo hợp nhất doanh thu & Hàng hoàn',
+    subtitle: 'Phân tích cơ cấu doanh thu đa kênh, tỷ lệ thu hồi khiếu nại và biên lợi nhuận ròng.',
+    isMock: true,
+    mockDesc: 'Báo cáo hợp nhất doanh thu, chi phí sàn, tỷ lệ hoàn trả và phân tích lợi nhuận ròng đa kênh bán hàng.',
+    kpis: [
+      { label: 'Tỷ lệ thắng khiếu nại', value: (r.financials?.winRate || 85) + '%', sub: 'Nhờ video chuẩn 6 mặt', dot: 'green' },
+      { label: 'Tiền đã cứu vãn', value: formatMoney(r.financials?.totalReceivedAmount), sub: 'Tránh mất trắng do tráo hàng', dot: 'green', isCountUp: true },
+      { label: 'Doanh thu hợp nhất', value: '657.300.000đ', sub: 'Tất cả sàn, web & POS', dot: 'blue' },
+      { label: 'Lợi nhuận ròng ước tính', value: '148.600.000đ', sub: 'Biên lợi nhuận 22.6%', dot: 'green' },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
+    ${heroHtml}
 
-    <div class="notice dev-notice">
-      ⚠️ <b>Chức năng đang phát triển (Dữ liệu mô phỏng - Hardcoded):</b> Báo cáo hợp nhất doanh thu, chi phí sàn, tỷ lệ hoàn trả và phân tích lợi nhuận ròng đa kênh bán hàng.
-    </div>
-
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Tỷ lệ thắng khiếu nại</div>
-        <div class="number" style="color:#107c41">${r.financials?.winRate || 85}%</div>
-        <small class="sub">Nhờ video đóng gói chuẩn 6 mặt</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tiền đã cứu vãn được</div>
-        <div class="number" style="color:#107c41">${formatMoney(r.financials?.totalReceivedAmount)}</div>
-        <small class="sub">Tránh mất trắng do tráo hàng</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Doanh thu hợp nhất</div>
-        <div class="number" style="color:var(--green)">657.300.000đ</div>
-        <small class="sub">Tất cả kênh sàn, web & POS</small>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Lợi nhuận ròng ước tính</div>
-        <div class="number" style="color:#107c41">148.600.000đ</div>
-        <small class="sub">Biên lợi nhuận ròng 22.6%</small>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <h2>Cơ cấu doanh thu & Hiệu quả bán hàng đa kênh (Omnichannel)</h2>
-      <div style="overflow-x:auto">
+    <div class="panel reveal" style="margin-bottom:16px">
+      <h2 style="margin:0 0 16px">Cơ cấu doanh thu & Hiệu quả bán hàng đa kênh (Omnichannel)</h2>
+      <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
       <table>
         <thead>
           <tr>
@@ -2010,49 +2149,74 @@ function renderReports(header) {
         </thead>
         <tbody>
           <tr>
-            <td><span class="channel-pill channel-shopee">Shopee Mall</span> <b>FixIt Tech & Gear Flagship</b></td>
+            <td>
+              <span class="channel-pill-neutral">
+                <span class="channel-dot channel-dot-shopee"></span>
+                <span>Shopee Mall</span>
+              </span>
+              <b style="margin-left:6px;color:var(--ink-900)">FixIt Tech & Gear Flagship</b>
+            </td>
             <td>Sàn TMĐT</td>
-            <td>312 đơn</td>
-            <td><b>382.400.000đ</b></td>
-            <td><b>58.2%</b></td>
-            <td style="color:#cf3737"><b>6.2%</b></td>
-            <td>42.064.000đ (~11%)</td>
+            <td><b class="tabular-nums">312</b> đơn</td>
+            <td><b class="tabular-nums">382.400.000đ</b></td>
+            <td><b class="tabular-nums">58.2%</b></td>
+            <td class="tabular-nums" style="color:var(--status-error)"><b>6.2%</b></td>
+            <td class="tabular-nums">42.064.000đ (~11%)</td>
           </tr>
           <tr>
-            <td><span class="channel-pill channel-tiktok">TikTok Shop Mall</span> <b>FixIt Fashion Official</b></td>
+            <td>
+              <span class="channel-pill-neutral">
+                <span class="channel-dot channel-dot-tiktok"></span>
+                <span>TikTok Shop Mall</span>
+              </span>
+              <b style="margin-left:6px;color:var(--ink-900)">FixIt Fashion Official</b>
+            </td>
             <td>Sàn TMĐT</td>
-            <td>184 đơn</td>
-            <td><b>145.200.000đ</b></td>
-            <td><b>22.1%</b></td>
-            <td style="color:#cf3737"><b>4.5%</b></td>
-            <td>15.972.000đ (~11%)</td>
+            <td><b class="tabular-nums">184</b> đơn</td>
+            <td><b class="tabular-nums">145.200.000đ</b></td>
+            <td><b class="tabular-nums">22.1%</b></td>
+            <td class="tabular-nums" style="color:var(--status-error)"><b>4.5%</b></td>
+            <td class="tabular-nums">15.972.000đ (~11%)</td>
           </tr>
           <tr>
-            <td><span class="channel-pill channel-web">Website Brand</span> <b>FixIt Official Store (Shopify)</b></td>
+            <td>
+              <span class="channel-pill-neutral">
+                <span class="channel-dot channel-dot-web"></span>
+                <span>Website Brand</span>
+              </span>
+              <b style="margin-left:6px;color:var(--ink-900)">FixIt Official Store (Shopify)</b>
+            </td>
             <td>Website D2C</td>
-            <td>52 đơn</td>
-            <td><b>78.500.000đ</b></td>
-            <td><b>11.9%</b></td>
-            <td style="color:#107c41"><b>1.8%</b></td>
-            <td>2.355.000đ (~3% cổng TT)</td>
+            <td><b class="tabular-nums">52</b> đơn</td>
+            <td><b class="tabular-nums">78.500.000đ</b></td>
+            <td><b class="tabular-nums">11.9%</b></td>
+            <td class="tabular-nums" style="color:var(--status-success)"><b>1.8%</b></td>
+            <td class="tabular-nums">2.355.000đ (~3% cổng TT)</td>
           </tr>
           <tr>
-            <td><span class="channel-pill channel-pos">Cửa hàng POS</span> <b>Flagship Store Q.1 TP.HCM</b></td>
+            <td>
+              <span class="channel-pill-neutral">
+                <span class="channel-dot channel-dot-pos"></span>
+                <span>Cửa hàng POS</span>
+              </span>
+              <b style="margin-left:6px;color:var(--ink-900)">Flagship Store Q.1 TP.HCM</b>
+            </td>
             <td>Bán tại quầy</td>
-            <td>38 đơn</td>
-            <td><b>51.200.000đ</b></td>
-            <td><b>7.8%</b></td>
-            <td style="color:#107c41"><b>0.5%</b></td>
-            <td>768.000đ (~1.5% quẹt thẻ)</td>
+            <td><b class="tabular-nums">38</b> đơn</td>
+            <td><b class="tabular-nums">51.200.000đ</b></td>
+            <td><b class="tabular-nums">7.8%</b></td>
+            <td class="tabular-nums" style="color:var(--status-success)"><b>0.5%</b></td>
+            <td class="tabular-nums">768.000đ (~1.5% quẹt thẻ)</td>
           </tr>
         </tbody>
       </table>
       </div>
     </div>
 
-    <div class="row">
+    <div class="row reveal">
       <div class="panel">
-        <h2>Hiệu quả theo sàn thương mại điện tử</h2>
+        <h2 style="margin:0 0 16px">Hiệu quả theo sàn thương mại điện tử</h2>
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
@@ -2064,23 +2228,35 @@ function renderReports(header) {
           </thead>
           <tbody>
             <tr>
-              <td><span class="channel-pill channel-shopee">Shopee</span></td>
-              <td><b>${r.byChannel?.Shopee?.returns || 0}</b></td>
-              <td>${r.byChannel?.Shopee?.claims || 0}</td>
-              <td style="color:#107c41"><b>${formatMoney(r.byChannel?.Shopee?.recovered || 0)}</b></td>
+              <td>
+                <span class="channel-pill-neutral">
+                  <span class="channel-dot channel-dot-shopee"></span>
+                  <span>Shopee</span>
+                </span>
+              </td>
+              <td><b class="tabular-nums">${r.byChannel?.Shopee?.returns || 0}</b></td>
+              <td><span class="tabular-nums">${r.byChannel?.Shopee?.claims || 0}</span></td>
+              <td class="tabular-nums" style="color:var(--status-success)"><b>${formatMoney(r.byChannel?.Shopee?.recovered || 0)}</b></td>
             </tr>
             <tr>
-              <td><span class="channel-pill channel-tiktok">TikTok Shop</span></td>
-              <td><b>${r.byChannel?.['TikTok Shop']?.returns || 0}</b></td>
-              <td>${r.byChannel?.['TikTok Shop']?.claims || 0}</td>
-              <td style="color:#107c41"><b>${formatMoney(r.byChannel?.['TikTok Shop']?.recovered || 0)}</b></td>
+              <td>
+                <span class="channel-pill-neutral">
+                  <span class="channel-dot channel-dot-tiktok"></span>
+                  <span>TikTok Shop</span>
+                </span>
+              </td>
+              <td><b class="tabular-nums">${r.byChannel?.['TikTok Shop']?.returns || 0}</b></td>
+              <td><span class="tabular-nums">${r.byChannel?.['TikTok Shop']?.claims || 0}</span></td>
+              <td class="tabular-nums" style="color:var(--status-success)"><b>${formatMoney(r.byChannel?.['TikTok Shop']?.recovered || 0)}</b></td>
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="panel">
-        <h2>Top lý do người mua yêu cầu hoàn hàng</h2>
+        <h2 style="margin:0 0 16px">Top lý do người mua yêu cầu hoàn hàng</h2>
+        <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
         <table>
           <thead>
             <tr>
@@ -2095,14 +2271,17 @@ function renderReports(header) {
         (item) => `
               <tr>
                 <td><b>${esc(item.reason)}</b></td>
-                <td>${item.count} đơn</td>
-                <td><span class="tag tag-warn">${Math.round((item.count / (orders.length || 1)) * 100)}%</span></td>
+                <td><b class="tabular-nums">${item.count}</b> đơn</td>
+                <td>
+                  <span class="tag-status tag-warn tabular-nums">${Math.round((item.count / (orders.length || 1)) * 100)}%</span>
+                </td>
               </tr>
             `
       )
       .join('')}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   `;
@@ -2110,12 +2289,36 @@ function renderReports(header) {
 
 // 10. TRANG CÀI ĐẶT (SETTINGS)
 function renderSettings(header) {
+  const heroHtml = renderPageHero({
+    breadcrumb: 'Cài đặt hệ thống / Dữ liệu',
+    title: 'Cài đặt hệ thống & Dữ liệu mẫu',
+    subtitle: 'Quản trị thiết lập chung, phân quyền và khôi phục dữ liệu mẫu kiểm thử.',
+    kpis: [
+      { label: 'Phiên bản hệ thống', value: 'v2.2 Pro', sub: 'FixIt Omnichannel', dot: 'blue' },
+      { label: 'Dữ liệu mẫu', value: 'Đầy đủ', sub: '10+ đơn hàng & video', dot: 'green' },
+      { label: 'Đồng bộ API', value: 'Ổn định', sub: 'Độ trễ < 200ms', dot: 'green' },
+      { label: 'Mã hóa video', value: 'AES-256', sub: 'Bảo mật bằng chứng', dot: 'blue' },
+    ],
+  });
+
   app.innerHTML = `
-    ${header}
-    <div class="panel">
-      <h2>Dữ liệu & Khôi phục mẫu</h2>
-      <p class="sub">Khôi phục lại toàn bộ dữ liệu mẫu (10+ đơn hàng, sản phẩm, kho, gian hàng và hồ sơ khiếu nại).</p>
-      <button class="btn danger" onclick="resetSeedData()">↻ Khôi phục toàn bộ dữ liệu mẫu (Reset Data)</button>
+    ${heroHtml}
+
+    <div class="panel reveal" style="max-width:680px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:38px;height:38px;border-radius:8px;background:var(--navy-900);color:var(--orange-500);display:grid;place-items:center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </div>
+        <div>
+          <h2 style="margin:0 0 2px;font-size:16px">Khôi phục toàn bộ dữ liệu mẫu (Reset Seed Data)</h2>
+          <p class="sub" style="margin:0">Nạp lại toàn bộ dữ liệu mẫu ban đầu gồm 10+ đơn hàng, video bằng chứng, sản phẩm, kho, gian hàng và hồ sơ khiếu nại.</p>
+        </div>
+      </div>
+      <div style="padding-top:14px;border-top:1px solid var(--sand-200);display:flex;justify-content:flex-start">
+        <button class="btn-soft" style="color:var(--status-error);border-color:rgba(207,55,55,0.3)" onclick="resetSeedData()">
+          ↻ Khôi phục toàn bộ dữ liệu mẫu
+        </button>
+      </div>
     </div>
   `;
 }
@@ -3085,7 +3288,7 @@ async function openDisputeJudgeModal(claimId) {
         `}
         <div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">
           <small class="sub">Văn bản người bán giải trình:</small>
-          <div style="background:#fff;padding:8px 10px;border-radius:6px;border:1px solid var(--line);font-size:12px;margin-top:4px;white-space:pre-wrap;max-height:90px;overflow-y:auto">
+          <div style="background:#fff;padding:8px 10px;border-radius:6px;border:1px solid var(--line);font-size:12px;margin-top:4px;white-space:pre-wrap;max-height:90px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;">
             ${esc(c.claimTemplateText || c.description || 'Không có văn bản')}
           </div>
         </div>
@@ -3225,7 +3428,7 @@ async function viewWalletModal() {
       <div class="panel" style="padding:14px;margin:0 0 14px">
         <h3 style="margin:0 0 12px;font-size:15px">Lịch sử giao dịch bồi hoàn & biến động số dư</h3>
         ${transactions.length ? `
-          <div style="overflow-x:auto">
+          <div class="table-responsive" style="overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;">
             <table>
               <thead>
                 <tr>
