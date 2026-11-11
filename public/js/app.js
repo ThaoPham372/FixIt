@@ -58,6 +58,9 @@ document.querySelectorAll('.nav').forEach((n) => {
 async function go(p) {
   page = p;
   document.querySelectorAll('.nav').forEach((n) => n.classList.toggle('on', n.dataset.page === p));
+  if (typeof closeDrawer === 'function') {
+    closeDrawer();
+  }
   await loadCurrentPageData();
   render();
 }
@@ -418,7 +421,7 @@ function renderOrders(header) {
   app.innerHTML = `
     ${heroHtml}
 
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+    <div class="orders-toolbar" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
       <div class="segmented-control">
         ${filters
           .map(
@@ -434,8 +437,8 @@ function renderOrders(header) {
           .join('')}
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center">
-        <div style="position:relative">
+      <div class="orders-search-wrap" style="display:flex;gap:8px;align-items:center">
+        <div class="orders-search-input-box" style="position:relative">
           <input id="orderSearch" placeholder="Tìm mã đơn, vận đơn, khách hàng..." value="${esc(searchQuery)}" onkeydown="if(event.key==='Enter') searchOrders()" style="padding-left:34px;height:36px;font-size:12.5px;width:260px;border-radius:10px">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:11px;top:10px;color:var(--ink-muted-aa)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         </div>
