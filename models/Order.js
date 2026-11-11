@@ -7,6 +7,8 @@ const evidenceSchema = new mongoose.Schema({
   mimeType: String,
   size: Number,
   note: String,
+  gridFsId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  storageType: { type: String, default: 'gridfs' },
   recordedAt: { type: Date, default: Date.now },
 });
 

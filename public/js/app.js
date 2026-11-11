@@ -2440,6 +2440,7 @@ function scan(code, kind) {
     <div class="field" style="border: 1px dashed var(--line); padding: 12px; border-radius: 8px;">
       <label><b>Tải tệp video/ảnh có sẵn từ máy tính:</b></label>
       <input type="file" id="directfile" accept="video/*,image/*" style="margin-top:6px">
+      <small class="sub" style="margin-top:4px;display:block">💡 Dung lượng tối đa: 4.5 MB. Khuyên dùng nút <b>"📷 Mở camera & Quay ngay"</b> để tự động tối ưu chuẩn 720p nhẹ mượt.</small>
     </div>
 
     <div class="end">
@@ -2457,6 +2458,17 @@ async function uploadDirect(kind) {
   const file = document.querySelector('#directfile')?.files?.[0];
   if (!code) return alert('Vui lòng nhập mã đơn hoặc mã vận đơn.');
   if (!file) return alert('Vui lòng chọn 1 tệp video hoặc ảnh từ máy tính trước.');
+
+  if (file.size > 4.5 * 1024 * 1024) {
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    alert(
+      `⚠️ Dung lượng tệp (${sizeMB} MB) vượt quá giới hạn 4.5 MB của nền tảng Vercel Serverless.\n\n` +
+      `💡 GIẢI PHÁP TỐI ƯU:\n` +
+      `1. Bạn hãy bấm nút "📷 Mở camera & Quay ngay": Hệ thống đã tối ưu chuẩn 720p @ 1.2 Mbps, quay 10-20 giây chỉ khoảng 1.5MB – 2.5MB, tải lên siêu nhanh và thành công 100%!\n` +
+      `2. Hoặc xuất/cắt video ngắn hơn ở độ phân giải 720p (dung lượng < 4.5 MB) trước khi tải lên.`
+    );
+    return;
+  }
 
   const btn = document.querySelector("button[onclick*='uploadDirect']");
   if (btn) {
@@ -2498,12 +2510,15 @@ async function uploadDirect(kind) {
   }
 }
 
-// Bật Camera quay video trực tiếp
+// Bật Camera quay video trực tiếp (Tối ưu bitrate 1.2 Mbps @ 720p cho Vercel)
 async function startCamera(kind) {
   const code = document.querySelector('#scancode').value.trim();
   if (!code) return alert('Vui lòng nhập mã đơn trước khi mở camera.');
 
   const requestId = window.FixItMediaCapture.beginRequest();
+  let recordInterval = null;
+  let elapsedSec = 0;
+
   try {
     if (kind === 'return') {
       await api(
@@ -2516,14 +2531,24 @@ async function startCamera(kind) {
       );
     }
 
+    const videoConstraints = {
+      facingMode: 'environment',
+      width: { ideal: 1280, max: 1280 },
+      height: { ideal: 720, max: 720 },
+    };
+
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: true });
     } catch {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
       } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
       }
     }
 
@@ -2532,22 +2557,46 @@ async function startCamera(kind) {
       return;
     }
 
-    const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+    const candidates = [
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9,opus',
+      'video/webm',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+    ];
     const chosenMime = candidates.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
-    let recorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+
+    // Khống chế bitrate 1.2 Mbps (1200 kbps) -> 10s video chỉ ~1.5 MB, 20s chỉ ~3 MB, hoàn toàn dưới mức 4.5 MB của Vercel!
+    const recorderOptions = {
+      videoBitsPerSecond: 1200000,
+    };
+    if (chosenMime) recorderOptions.mimeType = chosenMime;
+
+    let recorder;
+    try {
+      recorder = new MediaRecorder(stream, recorderOptions);
+    } catch {
+      recorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+    }
     let chunks = [];
 
     show(
       `
       <h2>${kind === 'packing' ? '📦 Đang quay đóng gói' : '↩️ Đang quay mở kiện hoàn'} · ${esc(code)}</h2>
-      <div class="camera"><video id="preview" autoplay muted playsinline></video></div>
+      <div class="camera">
+        <video id="preview" autoplay muted playsinline></video>
+        <div id="recStatus" style="color:var(--ink-muted-aa);font-weight:600;margin-top:8px;font-size:12.5px">Sẵn sàng quay (Đã tối ưu 720p cho Vercel)</div>
+      </div>
       <p class="notice">${kind === 'packing' ? 'Quay rõ nhãn vận đơn và toàn bộ quá trình đóng gói.' : 'Quay 6 mặt kiện hàng nguyên vẹn và quá trình bóc kiện.'}</p>
       <div class="end">
         <button class="btn secondary" onclick="stopCamera()">Hủy</button>
         <button id="rec" class="btn ${kind === 'return' ? 'danger' : ''}" onclick="recordNow()">● Bắt đầu quay</button>
       </div>
     `,
-      () => window.FixItMediaCapture.cancel()
+      () => {
+        if (recordInterval) clearInterval(recordInterval);
+        window.FixItMediaCapture.cancel();
+      }
     );
 
     window.FixItMediaCapture.attach(stream, recorder);
@@ -2556,13 +2605,24 @@ async function startCamera(kind) {
     window.recordNow = () => {
       if (recorder.state === 'inactive') {
         chunks = [];
+        elapsedSec = 0;
         recorder.start(1000);
         document.querySelector('#rec').textContent = '■ Dừng & Lưu video';
         document.querySelector('#rec').className = 'btn danger';
+
+        recordInterval = setInterval(() => {
+          elapsedSec++;
+          const secText = elapsedSec < 10 ? `0${elapsedSec}` : elapsedSec;
+          const statusElem = document.querySelector('#recStatus');
+          if (statusElem) {
+            statusElem.innerHTML = `<span style="color:#ef4444;font-weight:700">🔴 Đang quay: 00:${secText}</span> · Ước tính: ~${((elapsedSec * 1.2) / 8).toFixed(1)} MB (Khuyên dùng: 10s - 25s)`;
+          }
+        }, 1000);
       } else {
+        if (recordInterval) clearInterval(recordInterval);
         recorder.stop();
         document.querySelector('#rec').disabled = true;
-        document.querySelector('#rec').textContent = 'Đang lưu video…';
+        document.querySelector('#rec').textContent = '⏳ Đang lưu & Tải lên…';
       }
     };
 
@@ -2571,6 +2631,7 @@ async function startCamera(kind) {
     };
 
     recorder.onstop = async () => {
+      if (recordInterval) clearInterval(recordInterval);
       stream.getTracks().forEach((t) => t.stop());
       if (window.FixItMediaCapture.wasCancelled(recorder)) {
         window.FixItMediaCapture.cleanup();
@@ -2603,6 +2664,7 @@ async function startCamera(kind) {
       }
     };
   } catch (e) {
+    if (recordInterval) clearInterval(recordInterval);
     alert(e.message || 'Không truy cập được camera. Hãy cấp quyền camera trong trình duyệt hoặc sử dụng nút Tải tệp từ máy.');
   }
 }

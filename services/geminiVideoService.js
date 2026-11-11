@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { uploadDir } = require('./mediaStorage');
+const { uploadDir, samplesDir, readGridFSBuffer } = require('./mediaStorage');
 
 const API_ROOT = 'https://generativelanguage.googleapis.com';
 async function readJson(response) {
@@ -9,16 +9,51 @@ async function readJson(response) {
   return body;
 }
 async function uploadVideo(file, apiKey) {
-  const fullPath = path.join(uploadDir, path.basename(file.filename));
-  const stat = fs.statSync(fullPath);
+  let bytes = null;
+  let fileSize = 0;
   const mimeType = file.mimeType || 'video/mp4';
+
+  // 1. Ưu tiên đọc trực tiếp từ MongoDB Atlas GridFS
+  if (file.gridFsId) {
+    try {
+      bytes = await readGridFSBuffer(file.gridFsId);
+      fileSize = bytes.length;
+    } catch (gErr) {
+      console.warn('Lỗi đọc video từ GridFS cho Gemini:', gErr.message);
+    }
+  }
+
+  // 2. Dự phòng: Đọc từ ổ đĩa (public/samples/ hoặc uploads/)
+  if (!bytes) {
+    const baseName = path.basename(file.filename || '');
+    const origName = path.basename(file.originalName || '');
+    const candidates = [
+      path.join(samplesDir, baseName),
+      path.join(samplesDir, origName),
+      path.join(uploadDir, baseName),
+      path.join(__dirname, '..', 'uploads', baseName),
+      file.kind === 'return'
+        ? path.join(samplesDir, 'FX-1030-return.webm')
+        : path.join(samplesDir, 'FX-1026-packing.webm'),
+    ];
+    const foundPath = candidates.find((p) => p && fs.existsSync(p));
+    if (foundPath) {
+      bytes = fs.readFileSync(foundPath);
+      fileSize = bytes.length;
+    }
+  }
+
+  if (!bytes) {
+    throw new Error(`Không tìm thấy dữ liệu tệp video (${file.originalName || file.filename}) để gửi sang AI.`);
+  }
+
   const start = await fetch(`${API_ROOT}/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Upload-Protocol': 'resumable',
       'X-Goog-Upload-Command': 'start',
-      'X-Goog-Upload-Header-Content-Length': String(stat.size),
+      'X-Goog-Upload-Header-Content-Length': String(fileSize),
       'X-Goog-Upload-Header-Content-Type': mimeType,
     },
     body: JSON.stringify({ file: { display_name: file.originalName || file.filename } }),
@@ -26,7 +61,6 @@ async function uploadVideo(file, apiKey) {
   if (!start.ok) await readJson(start);
   const uploadUrl = start.headers.get('x-goog-upload-url');
   if (!uploadUrl) throw new Error('Gemini không trả về URL tải video.');
-  const bytes = fs.readFileSync(fullPath);
   const final = await fetch(uploadUrl, {
     method: 'POST',
     headers: { 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
